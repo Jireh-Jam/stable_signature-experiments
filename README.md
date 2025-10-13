@@ -1,208 +1,295 @@
-# ✍️ The Stable Signature: Rooting Watermarks in Latent Diffusion Models
+# Watermark Robustness Testing Pipeline
 
-Implementation and pretrained models.
-For details, see [**the paper**](https://arxiv.org/abs/2303.15435) (or go to ICCV 2023 in Paris 🥐).  
+A user-friendly framework for testing the robustness of image watermarks across multiple watermarking methods and various image transformations.
 
-[[`Webpage`](https://pierrefdz.github.io/publications/stablesignature/)]
-[[`arXiv`](https://arxiv.org/abs/2303.15435)]
-[[`Blog`](https://ai.meta.com/blog/stable-signature-watermarking-generative-ai/)]
-[[`Demo`](https://huggingface.co/spaces/imatag/stable-signature-bzh)]
+## 📋 Overview
 
-## Setup
+This repository provides a comprehensive pipeline for evaluating how well watermarks survive common image manipulations such as resizing, cropping, rotation, compression, and more. It's designed to be accessible to both technical and non-technical users.
 
+### Supported Watermarking Methods
 
-### Requirements
+1. **Stable Signature** - Watermarks embedded in latent diffusion models ([Paper](https://arxiv.org/abs/2303.15435))
+2. **Watermark Anything** - General-purpose watermarking system
+3. **TrustMark** - Robust watermarking with quality-factor tuning
 
-First, clone the repository locally and move inside the folder:
-```cmd
-git clone https://github.com/facebookresearch/stable_signature
-cd stable_signature
-```
-To install the main dependencies, we recommand using conda.
-[PyTorch](https://pytorch.org/) can be installed with:
-```cmd
-conda install -c pytorch torchvision pytorch==1.12.0 cudatoolkit==11.3
-```
+## 🎯 Who Is This For?
 
-Install the remaining dependencies with pip:
-```cmd
-pip install -r requirements.txt
-```
+- **Researchers** testing watermark robustness
+- **Content creators** evaluating watermarking solutions
+- **Developers** integrating watermarking into applications
+- **Anyone** interested in understanding watermark technology
 
-This codebase has been developed with python version 3.8, PyTorch version 1.12.0, CUDA 11.3.
+**No deep technical knowledge required!** The notebook includes clear instructions in British English and guides you through each step.
 
+## 🚀 Quick Start
 
-### Models and data
+### Prerequisites
 
-#### Data
+- Python 3.8 or higher
+- Basic familiarity with Jupyter notebooks
+- At least 4GB of disk space for models and outputs
 
-The paper uses the [COCO](https://cocodataset.org/) dataset to fine-tune the LDM decoder (we filtered images containing people).
-All you need is around 500 images for training (preferably over 256x256).
+### Installation
 
-#### Watermark models
+1. **Clone this repository**
+   ```bash
+   git clone https://github.com/facebookresearch/stable_signature
+   cd stable_signature
+   ```
 
-The watermark extractor model can be downloaded in the following links.
-The `.pth` file has not been whitened, while the `.torchscript.pt` file has been and can be used without any further processing. 
-We additionally provide another extractor model, which has been trained with blur and rotations and has better robustness to that kind of attacks, at the cost of a slightly lower image quality (you might need to adjust the perceptual loss weight at your convenience).
+2. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-| Model | Checkpoint | Torch-Script |
-| --- | --- | --- |
-| Extractor | [dec_48b.pth](https://dl.fbaipublicfiles.com/ssl_watermarking/dec_48b.pth) | [dec_48b_whit.torchscript.pt](https://dl.fbaipublicfiles.com/ssl_watermarking/dec_48b_whit.torchscript.pt)  |
-| Other | [other_dec_48b_whit.pth](https://dl.fbaipublicfiles.com/ssl_watermarking/other_dec_48b.pth) | [other_dec_48b_whit.torchscript.pt](https://dl.fbaipublicfiles.com/ssl_watermarking/other_dec_48b_whit.torchscript.pt) |
+3. **Set up watermarking models**
+   
+   Choose the watermarking method(s) you want to test and follow the setup instructions in the corresponding directory:
+   
+   - [Stable Signature Setup](watermark_models/stable-signature/README.md)
+   - [Watermark Anything Setup](watermark_models/watermark-anything/README.md)
+   - [TrustMark Setup](watermark_models/trustmark/README.md)
 
-The following code automatically downloads the models and put them in the `models` folder:
-```cmd
-mkdir models
-wget https://dl.fbaipublicfiles.com/ssl_watermarking/dec_48b_whit.torchscript.pt -P models/
-wget https://dl.fbaipublicfiles.com/ssl_watermarking/other_dec_48b_whit.torchscript.pt -P models/
-```
+### Using the Pipeline
 
-Code to train the watermark models is available in the folder called `hidden/`.
+1. **Open the notebook**
+   ```bash
+   jupyter notebook pipeline_mk4.ipynb
+   ```
 
-#### Stable Diffusion models
+2. **Configure your settings** in Section 1:
+   - Choose your watermarking method
+   - Set your username (if using Azure AI)
+   - Adjust processing options
 
-Create LDM configs and checkpoints from the [Hugging Face](https://huggingface.co/stabilityai) and [Stable Diffusion](https://github.com/Stability-AI/stablediffusion/tree/main/configs/stable-diffusion) repositories.
-The code should also work for Stable Diffusion v1 without any change. 
-For other models (like old LDMs or VQGANs), you may need to adapt the code to load the checkpoints.
+3. **Run the cells sequentially**
+   - Read the instructions in each section
+   - Execute cells in order
+   - Monitor progress bars
 
-An example of watermarked weights is available at [WM weights of latent decoder](https://dl.fbaipublicfiles.com/ssl_watermarking/sd2_decoder.pth) (the key is the one present in the `decoding.ipynb` file).
+4. **Review results**
+   - Check the CSV files in `outputs/{method}/results/`
+   - View visualisations generated in the notebook
+   - Analyse watermark detection rates
 
-#### Perceptual Losses
-
-The perceptual losses are based on [this repo](https://github.com/SteffenCzolbe/PerceptualSimilarity/).
-You should download the weights here: https://github.com/SteffenCzolbe/PerceptualSimilarity/tree/master/src/loss/weights, and put them in a folder called `losses` (this is used in [src/loss/loss_provider.py#L22](https://github.com/facebookresearch/stable_signature/blob/main/src/loss/loss_provider.py#L22)).
-To do so you can run 
-```
-git clone https://github.com/SteffenCzolbe/PerceptualSimilarity.git
-cp -r PerceptualSimilarity/src/loss/weights src/loss/losses/
-rm -r PerceptualSimilarity
-```
-
-
-## Usage
-
-### Watermark pre-training
-
-Please see [hidden/README.md](https://github.com/facebookresearch/stable_signature/tree/main/hidden/README.md) for details on how to train the watermark encoder/extractor.
-
-### Fine-tune LDM decoder
+## 📁 Repository Structure
 
 ```
-python finetune_ldm_decoder.py --num_keys 1 \
-    --ldm_config path/to/ldm/config.yaml \
-    --ldm_ckpt path/to/ldm/ckpt.pth \
-    --msg_decoder_path path/to/msg/decoder/ckpt.torchscript.pt \
-    --train_dir path/to/train/dir \
-    --val_dir path/to/val/dir
+stable_signature/
+├── pipeline_mk4.ipynb              # Main user-friendly pipeline notebook
+├── config.py                        # Configuration system for easy setup
+├── README.md                        # This file
+├── requirements.txt                 # Python dependencies
+│
+├── watermark_models/               # Watermarking method implementations
+│   ├── stable-signature/           # Stable Signature files
+│   │   ├── models/                 # Model checkpoints
+│   │   ├── watermarked_images/     # Test images
+│   │   └── README.md               # Method documentation
+│   ├── watermark-anything/         # Watermark Anything files
+│   │   ├── models/
+│   │   ├── watermarked_images/
+│   │   └── README.md
+│   ├── trustmark/                  # TrustMark files
+│   │   ├── watermarked_images/
+│   │   └── README.md
+│   └── README.md                   # Adding new methods guide
+│
+├── outputs/                        # Generated results and transformed images
+│   ├── watermark_anything/
+│   │   ├── transformed_images/
+│   │   └── results/
+│   ├── trustmark/
+│   │   ├── transformed_images/
+│   │   └── results/
+│   └── stable_signature/
+│       ├── transformed_images/
+│       └── results/
+│
+├── src/                            # Core library code
+│   ├── ldm/                        # Latent diffusion model code
+│   ├── loss/                       # Perceptual loss functions
+│   └── taming/                     # VQGAN code
+│
+├── hidden/                         # Watermark encoder/decoder training
+│   ├── main.py                     # Training script
+│   ├── models.py                   # Model architectures
+│   └── README.md                   # Training documentation
+│
+└── finetune_ldm_decoder.py        # Fine-tune LDM decoder for watermarking
 ```
 
-This code should generate: 
-- *num_keys* checkpoints of the LDM decoder with watermark fine-tuning (checkpoint_000.pth, etc.),
-- `keys.txt`: text file containing the keys used for fine-tuning (one key per line),
-- `imgs`: folder containing examples of auto-encoded images.
+## 🔧 Configuration
 
-[Params of LDM fine-tuning used in the paper](https://justpaste.it/aw0gj)  
-[Logs during LDM fine-tuning](https://justpaste.it/cse0x)
+The pipeline uses a flexible configuration system that adapts to your environment:
 
-### Generate
-
-#### With Stability AI codebase
-
-Reload weights of the LDM decoder in the Stable Diffusion scripts by appending the following lines after loading the checkpoint 
-(for instance, [L220 in the SD repo](https://github.com/Stability-AI/stablediffusion/blob/main/scripts/txt2img.py#L220))
-```python
-state_dict = torch.load(path/to/ldm/checkpoint_000.pth)['ldm_decoder']
-msg = model.first_stage_model.load_state_dict(state_dict, strict=False)
-print(f"loaded LDM decoder state_dict with message\n{msg}")
-print("you should check that the decoder keys are correctly matched")
-```
-
-You should also comment the lines that add the post-hoc watermark of SD: `img = put_watermark(img, wm_encoder)`.
-
-[WM weights of SD2 decoder](https://dl.fbaipublicfiles.com/ssl_watermarking/sd2_decoder.pth). Weights obtained after running [this command](https://justpaste.it/ae93f). 
-In this case, the state dict only contains the 'ldm_decoder' key, so you only need to load with `state_dict = torch.load(path/to/ckpt.pth)`
-
-#### With Diffusers
-
-Here is a code snippet that could be used to reload the decoder with the Diffusers library (transformers==4.25.1, diffusers==0.25.1). (Still WIP, this might be updated in the future!)
-
-:warning: Make sure that no "decoder.*" keys are printed by `print(unexpected_keys)`, otherwise it means that the LDM decoder has not been loaded.
-If you load a checkpoint created from `finetune_ldm_decoder.py`, use `unexpected_keys = ldm_aef.load_state_dict(state_dict['ldm_decoder'], strict=False)` instead.
-See [issue 29](https://github.com/facebookresearch/stable_signature/issues/29).
-
+### Using the Configuration Module
 
 ```python
-import torch 
-device = torch.device("cuda")
+from config import create_config
 
-from omegaconf import OmegaConf 
-from diffusers import StableDiffusionPipeline 
-from utils_model import load_model_from_config 
+# Create configuration for your chosen method
+config = create_config(
+    method="Watermark_Anything",  # or "TrustMark", "Stable_Signature"
+    user_name="YourName",          # Your Azure AI username (if applicable)
+    max_images=10                  # Limit for testing (None for all images)
+)
 
-ldm_config = "sd/stable-diffusion-2-1-base/v2-inference.yaml"
-ldm_ckpt = "sd/stable-diffusion-2-1-base/v2-1_512-ema-pruned.ckpt"
-
-print(f'>>> Building LDM model with config {ldm_config} and weights from {ldm_ckpt}...')
-config = OmegaConf.load(f"{ldm_config}")
-ldm_ae = load_model_from_config(config, ldm_ckpt)
-ldm_aef = ldm_ae.first_stage_model
-ldm_aef.eval()
-
-# loading the fine-tuned decoder weights
-state_dict = torch.load("sd2_decoder.pth")
-unexpected_keys = ldm_aef.load_state_dict(state_dict, strict=False)
-print(unexpected_keys)
-print("you should check that the decoder keys are correctly matched")
-
-# loading the pipeline, and replacing the decode function of the pipe
-model = "stabilityai/stable-diffusion-2"
-pipe = StableDiffusionPipeline.from_pretrained(model).to(device)
-pipe.vae.decode = (lambda x,  *args, **kwargs: ldm_aef.decode(x).unsqueeze(0))
-
-img = pipe("the cat drinks water.").images[0]
-img.save("cat.png")
+# Verify your setup
+config.print_configuration()
 ```
 
-### Decode and Evaluate
+### Environment Auto-Detection
 
-The `decode.ipynb` notebook contains a full example of the decoding and associated statistical test.
+The pipeline automatically detects whether you're running:
+- **Azure AI**: Uses Azure-specific paths
+- **Local Machine**: Uses current working directory
 
-The `run_eval.py` script can be used to get the robustness and quality metrics on a folder of images.
-For instance:
+## 📊 Understanding the Results
+
+After running the pipeline, you'll receive:
+
+### CSV Results File
+Contains detailed metrics for each transformed image:
+- `original_image`: Name of the source image
+- `transformed_image`: Name of the modified image
+- `transformation_type`: Type of modification applied
+- `watermark_detected`: Whether the watermark was found (True/False)
+- `detected_bits`: The actual watermark bits extracted
+- `psnr`: Peak Signal-to-Noise Ratio (higher = better quality)
+- `ssim`: Structural Similarity Index (closer to 1 = more similar)
+- `mse`: Mean Squared Error (lower = more similar)
+
+### Visualisations
+The notebook generates plots showing:
+1. **Detection Rate by Transformation** - Which transformations affect watermarks most
+2. **PSNR Distribution** - Overall image quality after transformations
+3. **SSIM Distribution** - Structural similarity distribution
+4. **Detection vs Quality** - Relationship between image quality and watermark detection
+
+### Interpreting the Metrics
+
+- **PSNR**: Typically 20-50 dB. Higher values indicate the transformed image looks more like the original.
+- **SSIM**: Range 0-1. Values above 0.9 indicate very similar images.
+- **Detection Rate**: Percentage of transformed images where the watermark was successfully detected.
+
+## 🔬 Advanced Usage
+
+### Testing Different Transformations
+
+In the notebook configuration section, you can customise:
+
+```python
+# Number of images to process
+MAX_IMAGES_TO_PROCESS = 10  # Start small for testing
+
+# Enable/disable specific transformations
+APPLY_RESIZE = True
+APPLY_CROP = True
+APPLY_ROTATION = True
+APPLY_BLUR = True
+APPLY_COMPRESSION = True
+APPLY_NOISE = True
+APPLY_COLOUR_JITTER = True
+
+# Customise transformation parameters
+RESIZE_DIMENSIONS = [(256, 256), (512, 512), (1024, 1024)]
+CROP_PERCENTAGES = [0.99, 0.90, 0.80, 0.70, 0.60, 0.50]
+ROTATION_ANGLES = [5, 15, 30, 45, 90, 180]
+BLUR_KERNEL_SIZES = [3, 11, 21, 51]
+COMPRESSION_QUALITIES = [95, 85, 75, 50, 25]
 ```
-python run_eval.py --eval_imgs False --eval_bits True \
-    --img_dir path/to/imgs_w \
-    --key_str '111010110101000001010111010011010100010000100111'
+
+### Adding Your Own Watermarking Method
+
+See [watermark_models/README.md](watermark_models/README.md) for detailed instructions on integrating a new watermarking method.
+
+### Training Your Own Watermark Models
+
+For Stable Signature, you can train custom watermark models:
+
+```bash
+python finetune_ldm_decoder.py \
+    --num_keys 1 \
+    --ldm_config path/to/config.yaml \
+    --ldm_ckpt path/to/checkpoint.pth \
+    --msg_decoder_path path/to/decoder.torchscript.pt \
+    --train_dir path/to/training/images \
+    --val_dir path/to/validation/images
 ```
-will return a csv file containing bit accuracy for different attacks applied before decoding.
 
-```
-python run_eval.py --eval_imgs True --eval_bits False \
-    --img_dir path/to/imgs_w --img_dir_nw path/to/imgs_nw 
-```
-will return a csv file containing image metrics (PSNR, SSIM, LPIPS) between watermarked (`_w`) and non-watermarked (`_nw`) images.
+See [hidden/README.md](hidden/README.md) for watermark encoder/decoder training.
 
+## 💡 Tips for Best Results
 
+1. **Start Small**: Test with 10-20 images first to ensure everything works
+2. **Check Paths**: Verify all file paths before running the full pipeline
+3. **Monitor Progress**: Watch the progress bars to estimate completion time
+4. **Save Regularly**: The notebook saves results after each section
+5. **Multiple Methods**: Run the notebook separately for each watermarking method
 
-## Acknowledgements
+## 🐛 Troubleshooting
 
-This code is based on the following repositories:
+### Common Issues
 
-- https://github.com/Stability-AI/stablediffusion
-- https://github.com/SteffenCzolbe/PerceptualSimilarity
+**"Root directory does not exist"**
+- Update the `USER_NAME` variable in Section 1 of the notebook
+- Verify you've cloned the repository to the expected location
 
-To train the watermark encoder/extractor, you can also refer to the following repository https://github.com/ando-khachatryan/HiDDeN. 
+**"No images found"**
+- Check that watermarked images are in the correct directory
+- Verify image file extensions (.png, .jpg, .jpeg)
 
-## License
+**"Model checkpoint not found"**
+- Download the required model files (see method-specific READMEs)
+- Check the checkpoint path in the configuration
 
-The majority of Stable Signature is licensed under CC-BY-NC, however portions of the project are available under separate license terms: `src/ldm` and `src/taming` are licensed under the MIT license.
+**"CUDA out of memory"**
+- Reduce `MAX_IMAGES_TO_PROCESS` to process fewer images at once
+- Restart the notebook kernel to clear memory
 
-## Citation
+**Import errors**
+- Run the dependency installation cell again
+- Verify all packages in `requirements.txt` are installed
 
-If you find this repository useful, please consider giving a star :star: and please cite as:
+### Getting Help
 
+If you encounter issues:
+1. Check the method-specific README in `watermark_models/`
+2. Review the configuration section in the notebook
+3. Verify your environment setup
+4. Check the original repository issues for similar problems
 
-```
+## 📚 Original Repository Components
+
+This repository is based on [Stable Signature](https://github.com/facebookresearch/stable_signature) and includes:
+
+- **Stable Diffusion Integration**: Fine-tune watermarks into LDMs
+- **Watermark Training Code**: Train encoder/decoder models
+- **Evaluation Scripts**: Assess robustness and image quality
+- **Pre-trained Models**: Download and use existing watermark models
+
+For the original Stable Signature documentation, see the research paper and project page.
+
+## 📄 License
+
+The majority of this repository is licensed under CC-BY-NC. However:
+- `src/ldm` and `src/taming` are licensed under the MIT license
+- Check individual watermarking methods for their specific licenses
+
+## 🙏 Acknowledgements
+
+This pipeline builds upon excellent work from:
+- [Stable Signature](https://github.com/facebookresearch/stable_signature) by Meta AI Research
+- [Stable Diffusion](https://github.com/Stability-AI/stablediffusion) by Stability AI
+- [Perceptual Similarity](https://github.com/SteffenCzolbe/PerceptualSimilarity)
+- [HiDDeN](https://github.com/ando-khachatryan/HiDDeN) watermarking framework
+
+## 📖 Citation
+
+If you use this pipeline in your research, please cite the Stable Signature paper:
+
+```bibtex
 @article{fernandez2023stable,
   title={The Stable Signature: Rooting Watermarks in Latent Diffusion Models},
   author={Fernandez, Pierre and Couairon, Guillaume and J{\'e}gou, Herv{\'e} and Douze, Matthijs and Furon, Teddy},
@@ -210,3 +297,16 @@ If you find this repository useful, please consider giving a star :star: and ple
   year={2023}
 }
 ```
+
+## 🌟 Additional Resources
+
+- [Project Website](https://pierrefdz.github.io/publications/stablesignature/)
+- [Research Paper](https://arxiv.org/abs/2303.15435)
+- [Blog Post](https://ai.meta.com/blog/stable-signature-watermarking-generative-ai/)
+- [Interactive Demo](https://huggingface.co/spaces/imatag/stable-signature-bzh)
+
+---
+
+**Happy watermarking! 🎨🔐**
+
+For questions or contributions, please open an issue on GitHub.

@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Model files (too large for git)
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+watermark_models/*/models/*.pth
+watermark_models/*/models/*.pt
+watermark_models/*/models/*.ckpt
+
+# Output files
+outputs/*/transformed_images/
+outputs/*/results/*.csv
+outputs/*/results/*.png
+
+# Watermarked images (can be large)
+watermark_models/*/watermarked_images/*.png
+watermark_models/*/watermarked_images/*.jpg
+watermark_models/*/watermarked_images/*.jpeg
+
+# Keep directory structure with .gitkeep files
+!.gitkeep
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# Azure
+.azure/
+
+# Compressed files
+*.zip
+*.tar.gz
+*.tar
+
+# Test outputs
+test_outputs/
+
+# Legacy files from old pipeline
+Pipeline_mk4.ipynb.bak

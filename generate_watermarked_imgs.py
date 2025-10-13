@@ -1,4 +1,8 @@
 import os
+import sys
+import argparse
+import urllib.request
+from pathlib import Path
 import torch
 from torchvision import transforms
 import matplotlib.pyplot as plt
@@ -9,8 +13,15 @@ import csv
 from datetime import datetime
 from tqdm import tqdm
 import random
-from models import HiddenEncoder, HiddenDecoder, EncoderWithJND, EncoderDecoder
-from attenuations import JND
+
+# Ensure we can import from the `hidden` directory (where `models.py` and `attenuations.py` live)
+REPO_ROOT = Path(__file__).resolve().parent
+HIDDEN_DIR = REPO_ROOT / "hidden"
+if HIDDEN_DIR.exists() and str(HIDDEN_DIR) not in sys.path:
+    sys.path.insert(0, str(HIDDEN_DIR))
+
+from models import HiddenEncoder, HiddenDecoder, EncoderWithJND  # from hidden/models.py
+from attenuations import JND  # from hidden/attenuations.py
 
 ####################################################################################################
 # Author: Jireh Jam
@@ -24,7 +35,7 @@ from attenuations import JND
 
 # Function definitions
 def msg2str(msg):
-    returgn "".join([('1' if el else '0') for el in msg])
+    return "".join([('1' if el else '0') for el in msg])
 
 def str2msg(str):
     return [True if el=='1' else False for el in str]
@@ -42,7 +53,7 @@ class Params():
         self.scaling_i = scaling_i
         self.scaling_w = scaling_w
 
-def create_directories(base_dir="output"):
+def create_directories(base_dir: str = "output"):
     """Create necessary directories for output"""
     directories = {
         'watermarked': os.path.join(base_dir, 'watermarked'),
@@ -57,7 +68,7 @@ def create_directories(base_dir="output"):
     
     return directories
 
-def get_all_image_paths(base_dir):
+def get_all_image_paths(base_dir: str):
     """Get all image paths from the nested directory structure"""
     image_paths = []
     for folder in os.listdir(base_dir):
@@ -74,7 +85,16 @@ def get_all_image_paths(base_dir):
                     })
     return image_paths
 
-def process_image(image_info, encoder_with_jnd, decoder, params, directories, device, default_transform, random_msg=False):
+def process_image(
+    image_info,
+    encoder_with_jnd,
+    decoder,
+    params,
+    directories,
+    device,
+    default_transform,
+    random_msg: bool = False,
+):
     """Process a single image with watermarking"""
     # Extract information
     img_path = image_info['full_path']
@@ -157,11 +177,54 @@ def process_image(image_info, encoder_with_jnd, decoder, params, directories, de
     
     return metrics
 
+
+def ensure_checkpoint(ckpt_path: Path) -> Path:
+    """Ensure the HiDDeN replicate checkpoint exists; download if missing.
+
+    Returns the path to the checkpoint.
+    """
+    ckpt_path.parent.mkdir(parents=True, exist_ok=True)
+    if ckpt_path.exists():
+        return ckpt_path
+
+    # Public link from Meta's paper repo
+    url = "https://dl.fbaipublicfiles.com/ssl_watermarking/hidden_replicate.pth"
+    print(f"Checkpoint not found at {ckpt_path}. Downloading from {url} ...")
+    try:
+        with urllib.request.urlopen(url) as response, open(ckpt_path, 'wb') as out:
+            out.write(response.read())
+        print(f"Downloaded checkpoint to {ckpt_path}")
+    except Exception as e:
+        raise RuntimeError(f"Failed to download checkpoint: {e}")
+
+    return ckpt_path
+
 if __name__ == "__main__":
-    # Constants and device setup
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    parser = argparse.ArgumentParser(description="Generate watermarked images using HiDDeN encoder/decoder")
+    parser.add_argument("--input_dir", type=str, default=os.environ.get("WATERMARK_INPUT_DIR", ""),
+                        help="Directory containing images (scans nested subfolders)")
+    parser.add_argument("--output_dir", type=str, default="output", help="Directory to write outputs")
+    parser.add_argument("--num_images", type=int, default=0, help="Limit number of images (0 = all)")
+    parser.add_argument("--random_msg", action="store_true", help="Use random 48-bit message per image")
+    parser.add_argument("--ckpt_path", type=str, default=str(REPO_ROOT / "ckpts" / "hidden_replicate.pth"),
+                        help="Path to HiDDeN replicate checkpoint (.pth)")
+    parser.add_argument("--device", type=str, default="auto", choices=["auto", "cuda", "cpu"],
+                        help="Device selection")
+    args = parser.parse_args()
+
+    if not args.input_dir:
+        raise SystemExit("--input_dir is required (or set WATERMARK_INPUT_DIR)")
+
+    # Device setup
+    if args.device == "auto":
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    else:
+        device = torch.device(args.device)
+
+    # Normalization
     NORMALIZE_IMAGENET = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    UNNORMALIZE_IMAGENET = transforms.Normalize(mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225], std=[1/0.229, 1/0.224, 1/0.225])
+    UNNORMALIZE_IMAGENET = transforms.Normalize(mean=[-0.485/0.229, -0.456/0.224, -0.406/0.225],
+                                                std=[1/0.229, 1/0.224, 1/0.225])
     default_transform = transforms.Compose([transforms.ToTensor(), NORMALIZE_IMAGENET])
 
     # Initialize parameters
@@ -171,24 +234,15 @@ if __name__ == "__main__":
     )
 
     # Initialize models
-    decoder = HiddenDecoder(
-        num_blocks=params.decoder_depth, 
-        num_bits=params.num_bits, 
-        channels=params.decoder_channels
-    )
-    encoder = HiddenEncoder(
-        num_blocks=params.encoder_depth, 
-        num_bits=params.num_bits, 
-        channels=params.encoder_channels
-    )
+    decoder = HiddenDecoder(num_blocks=params.decoder_depth, num_bits=params.num_bits, channels=params.decoder_channels)
+    encoder = HiddenEncoder(num_blocks=params.encoder_depth, num_bits=params.num_bits, channels=params.encoder_channels)
     attenuation = JND(preprocess=UNNORMALIZE_IMAGENET) if params.attenuation == "jnd" else None
-    encoder_with_jnd = EncoderWithJND(
-        encoder, attenuation, params.scale_channels, params.scaling_i, params.scaling_w
-    )
+    encoder_with_jnd = EncoderWithJND(encoder, attenuation, params.scale_channels, params.scaling_i, params.scaling_w)
 
-    # Load model weights
-    ckpt_path = "ckpts/hidden_replicate.pth"
-    state_dict = torch.load(ckpt_path, map_location='cpu')['encoder_decoder']
+    # Load model weights (download if missing)
+    ckpt = ensure_checkpoint(Path(args.ckpt_path))
+    state = torch.load(str(ckpt), map_location='cpu')
+    state_dict = state['encoder_decoder'] if 'encoder_decoder' in state else state
     encoder_decoder_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     encoder_state_dict = {k.replace('encoder.', ''): v for k, v in encoder_decoder_state_dict.items() if 'encoder' in k}
     decoder_state_dict = {k.replace('decoder.', ''): v for k, v in encoder_decoder_state_dict.items() if 'decoder' in k}
@@ -201,16 +255,12 @@ if __name__ == "__main__":
     decoder = decoder.to(device).eval()
 
     # Create output directories
-    directories = create_directories()
+    directories = create_directories(args.output_dir)
 
     # Get all image paths
-    input_directory = "../../pass"  # Update this to your pass directory path
-    all_image_paths = get_all_image_paths(input_directory)
-    num_images = 3000  # Set the number of images to process
-
-    # Randomly select images if needed
-    if num_images and num_images < len(all_image_paths):
-        selected_images = random.sample(all_image_paths, num_images)
+    all_image_paths = get_all_image_paths(args.input_dir)
+    if args.num_images and args.num_images > 0 and args.num_images < len(all_image_paths):
+        selected_images = random.sample(all_image_paths, args.num_images)
     else:
         selected_images = all_image_paths
 
@@ -226,7 +276,7 @@ if __name__ == "__main__":
                 directories,
                 device,
                 default_transform,
-                random_msg=False
+                random_msg=args.random_msg,
             )
             all_metrics.append(metrics)
         except Exception as e:

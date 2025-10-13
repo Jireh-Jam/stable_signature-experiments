@@ -21,10 +21,8 @@ from attenuations import JND
 #              combined visualizations. The script also calculates the PSNR and bit accuracy of the
 #              watermarked images.
 ####################################################################################################
-
-# Function definitions
-def msg2str(msg):
-    returgn "".join([('1' if el else '0') for el in msg])
+def msg2str(msg):
+    return "".join([('1' if el else '0') for el in msg])
 
 def str2msg(str):
     return [True if el=='1' else False for el in str]

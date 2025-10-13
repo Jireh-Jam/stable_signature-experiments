@@ -8,6 +8,49 @@ For details, see [**the paper**](https://arxiv.org/abs/2303.15435) (or go to ICC
 [[`Blog`](https://ai.meta.com/blog/stable-signature-watermarking-generative-ai/)]
 [[`Demo`](https://huggingface.co/spaces/imatag/stable-signature-bzh)]
 
+## Quick start (friendly)
+
+Follow these steps to run a complete watermark evaluation with minimal fuss:
+
+1) Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+2) Download the pretrained watermark decoder (TorchScript is easiest)
+
+```bash
+mkdir -p models
+wget https://dl.fbaipublicfiles.com/ssl_watermarking/dec_48b_whit.torchscript.pt -P models/
+```
+
+3) Prepare two folders of images with matching filenames
+
+- `img_dir`: images that may contain a watermark
+- `img_dir_nw`: corresponding non‑watermarked images (same filenames) for quality comparison
+
+4) Copy and edit the example configuration
+
+```bash
+cp configs/example_hidden_eval.yaml configs/my_eval.yaml
+# Edit paths in configs/my_eval.yaml to your image folders
+```
+
+5) Run the experiment runner
+
+```bash
+python -m experiments.runner --config configs/my_eval.yaml
+```
+
+This will produce `img_metrics.csv` (quality), `log_stats.csv` (decoding/robustness), and a few example image pairs in your chosen `output_dir`.
+
+Tip: Prefer the TorchScript decoder for plug‑and‑play use. If you must use a `.pth` checkpoint, set `num_bits`, `redundancy`, `decoder_depth`, and `decoder_channels` in the config.
+
+### Optional: Guided notebook
+
+Open `Pipeline_mk4.ipynb` for a step‑by‑step, non‑technical walkthrough that writes a config for you and runs the same experiment.
+
 ## Setup
 
 
@@ -104,6 +147,33 @@ This code should generate:
 [Params of LDM fine-tuning used in the paper](https://justpaste.it/aw0gj)  
 [Logs during LDM fine-tuning](https://justpaste.it/cse0x)
 
+### Extending to other watermark models
+
+The repository now supports a small plug‑in system for decoders. To add your own:
+
+1) Create a new builder in `watermarking/models/your_model.py` and register it:
+
+```python
+from watermarking.registry import register_decoder
+
+@register_decoder("your_name")
+def build_my_decoder(config):
+    # return a torch.nn.Module mapping images -> bit logits
+    ...
+```
+
+2) Import your module in `watermarking/models/__init__.py` so it is discovered.
+
+3) In your YAML config, set:
+
+```yaml
+model:
+  name: your_name
+  # plus any other keys your builder reads
+```
+
+Your decoder will then work with the same experiment runner and notebook without further changes.
+
 ### Generate
 
 #### With Stability AI codebase
@@ -167,17 +237,17 @@ img.save("cat.png")
 
 The `decode.ipynb` notebook contains a full example of the decoding and associated statistical test.
 
-The `run_eval.py` script can be used to get the robustness and quality metrics on a folder of images.
+You can also use the legacy `run_evals.py` script directly to get robustness and quality metrics on a folder of images.
 For instance:
 ```
-python run_eval.py --eval_imgs False --eval_bits True \
+python run_evals.py --eval_imgs False --eval_bits True \
     --img_dir path/to/imgs_w \
     --key_str '111010110101000001010111010011010100010000100111'
 ```
 will return a csv file containing bit accuracy for different attacks applied before decoding.
 
 ```
-python run_eval.py --eval_imgs True --eval_bits False \
+python run_evals.py --eval_imgs True --eval_bits False \
     --img_dir path/to/imgs_w --img_dir_nw path/to/imgs_nw 
 ```
 will return a csv file containing image metrics (PSNR, SSIM, LPIPS) between watermarked (`_w`) and non-watermarked (`_nw`) images.

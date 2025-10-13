@@ -292,6 +292,7 @@ def get_parser():
 
     group = parser.add_argument_group('Eval bits')
     aa("--eval_bits", type=utils.bool_inst, default=True, help="")
+    aa("--decoder_name", type=str, default="hidden", help="Registered decoder name (e.g. 'hidden').")
     aa("--decode_only", type=utils.bool_inst, default=False, help="")
     aa("--key_str", type=str, default="111010110101000001010111010011010100010000100111")
     aa("--msg_decoder_path", type=str, default= "models/dec_48b_whit.torchscript.pt")

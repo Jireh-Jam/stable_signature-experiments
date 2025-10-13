@@ -9,6 +9,9 @@ import csv
 from datetime import datetime
 from tqdm import tqdm
 import random
+import sys
+import os
+sys.path.append('hidden')
 from models import HiddenEncoder, HiddenDecoder, EncoderWithJND, EncoderDecoder
 from attenuations import JND
 
@@ -24,7 +27,7 @@ from attenuations import JND
 
 # Function definitions
 def msg2str(msg):
-    returgn "".join([('1' if el else '0') for el in msg])
+    return "".join([('1' if el else '0') for el in msg])
 
 def str2msg(str):
     return [True if el=='1' else False for el in str]
@@ -187,7 +190,7 @@ if __name__ == "__main__":
     )
 
     # Load model weights
-    ckpt_path = "ckpts/hidden_replicate.pth"
+    ckpt_path = "hidden/ckpts/hidden_replicate.pth"
     state_dict = torch.load(ckpt_path, map_location='cpu')['encoder_decoder']
     encoder_decoder_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     encoder_state_dict = {k.replace('encoder.', ''): v for k, v in encoder_decoder_state_dict.items() if 'encoder' in k}
@@ -204,7 +207,7 @@ if __name__ == "__main__":
     directories = create_directories()
 
     # Get all image paths
-    input_directory = "../../pass"  # Update this to your pass directory path
+    input_directory = "pass"  # Update this to your pass directory path
     all_image_paths = get_all_image_paths(input_directory)
     num_images = 3000  # Set the number of images to process
 

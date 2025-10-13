@@ -1,0 +1,34 @@
+# User-Friendly Watermark Testing Pipeline Requirements
+# Install with: pip install -r requirements_user_friendly.txt
+
+# Core dependencies
+numpy>=1.21.0
+pandas>=1.3.0
+pillow>=8.3.0
+matplotlib>=3.4.0
+seaborn>=0.11.0
+pyyaml>=5.4.0
+
+# Jupyter notebook support
+jupyter>=1.0.0
+ipywidgets>=7.6.0
+
+# Image processing
+opencv-python>=4.5.0
+scikit-image>=0.18.0
+
+# Machine learning (lightweight versions)
+torch>=1.9.0
+torchvision>=0.10.0
+
+# Progress bars and utilities
+tqdm>=4.62.0
+pathlib2>=2.3.0
+
+# Optional: Azure storage (uncomment if needed)
+# azure-storage-blob>=12.8.0
+# azure-identity>=1.6.0
+
+# Optional: Advanced image processing (uncomment if needed)
+# imageio>=2.9.0
+# scipy>=1.7.0

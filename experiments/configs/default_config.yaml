@@ -1,0 +1,123 @@
+# Default Configuration for Watermark Testing Pipeline
+# This file contains all the settings you can adjust for your experiments
+
+# Experiment Information
+experiment:
+  name: "watermark_robustness_test"
+  description: "Testing watermark robustness against various image transformations"
+  version: "1.0"
+  author: "Watermarking Research Team"
+
+# User Settings (PLEASE UPDATE THESE)
+user:
+  name: "David.Fletcher"  # Change this to your username
+  email: "user@example.com"  # Optional: your email
+  azure_root_dir: "/home/azureuser/cloudfiles/code/Users/"
+
+# Watermarking Method Configuration
+watermarking:
+  method: "stable_signature"  # Options: stable_signature, trustmark, watermark_anything
+  message: "test_watermark_48bits_demo_message_here"  # Message to embed
+  
+  # Method-specific settings
+  stable_signature:
+    model_path: "models/checkpoints/dec_48b_whit.torchscript.pt"
+    key_length: 48
+    
+  trustmark:
+    model_path: "models/trustmark/model.pth"
+    
+  watermark_anything:
+    model_path: "models/watermark_anything/model.pth"
+
+# Data Configuration
+data:
+  # Input data settings
+  raw_images_dir: "experiments/data/raw"
+  max_images_to_process: 10  # Limit for testing (set to -1 for all images)
+  supported_formats: [".jpg", ".jpeg", ".png", ".bmp", ".tiff"]
+  
+  # Output directories
+  watermarked_images_dir: "experiments/data/watermarked"
+  transformed_images_dir: "experiments/data/transformed"
+  results_dir: "experiments/results"
+  
+  # Azure Blob Storage (optional)
+  azure_storage:
+    enabled: false
+    connection_string: ""  # Add your connection string here
+    container_name: ""     # Add your container name here
+    blob_prefix: "raw_images/"
+
+# Image Processing Settings
+processing:
+  # Image preprocessing
+  resize_before_watermarking: false
+  target_size: [512, 512]  # [width, height] - only used if resize_before_watermarking is true
+  
+  # Output format settings
+  output_format: "PNG"  # PNG, JPEG
+  jpeg_quality: 95      # Only used if output_format is JPEG
+
+# Transformation Settings
+transformations:
+  # Which transformation sets to apply
+  apply_standard: true      # Apply standard transformation set
+  apply_aggressive: false   # Apply more aggressive transformations
+  apply_custom: false       # Apply custom transformations (define below)
+  
+  # Custom transformations (only used if apply_custom is true)
+  custom:
+    - name: "custom_crop"
+      type: "crop_center"
+      parameters:
+        crop_percentage: 0.15
+    - name: "custom_blur"
+      type: "blur_gaussian" 
+      parameters:
+        radius: 2.5
+
+# Evaluation Settings
+evaluation:
+  # Detection thresholds
+  confidence_threshold: 0.5  # Minimum confidence for positive detection
+  
+  # Metrics to calculate
+  calculate_image_similarity: true   # Calculate PSNR, SSIM between original and watermarked
+  calculate_robustness_metrics: true # Calculate detection rates, confidence stats
+  
+  # Reporting
+  generate_plots: true        # Create visualization plots
+  save_detailed_results: true # Save detailed CSV files
+  print_progress: true        # Print progress during processing
+
+# Performance Settings
+performance:
+  # Processing settings
+  batch_size: 1              # Number of images to process at once
+  use_gpu: true              # Use GPU if available
+  num_workers: 1             # Number of parallel workers
+  
+  # Memory management
+  clear_cache_between_batches: true
+  max_memory_usage_gb: 8     # Maximum memory usage in GB
+
+# Logging Settings
+logging:
+  level: "INFO"              # DEBUG, INFO, WARNING, ERROR
+  log_to_file: true          # Save logs to file
+  log_file: "experiments/logs/pipeline.log"
+  log_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Advanced Settings (usually don't need to change)
+advanced:
+  # Random seed for reproducibility
+  random_seed: 42
+  
+  # Temporary file handling
+  cleanup_temp_files: true
+  temp_dir: "experiments/temp"
+  
+  # Error handling
+  continue_on_error: true    # Continue processing if individual images fail
+  max_retries: 3             # Maximum retries for failed operations

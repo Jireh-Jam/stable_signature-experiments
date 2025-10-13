@@ -1,0 +1,45 @@
+# Example configuration for evaluating a folder of images
+# against a HiDDeN-style watermark decoder.
+
+# Where to put results (CSVs and example images)
+output_dir: output/example_hidden_eval
+
+# Image folders
+# - img_dir: images suspected to be watermarked
+# - img_dir_nw: matching non-watermarked images (same filenames) for quality comparison
+# - img_dir_fid: optional reference distribution for FID
+img_dir: path/to/watermarked_images
+img_dir_nw: path/to/non_watermarked_images
+img_dir_fid: null
+
+# How many example image pairs to save for visual inspection
+save_n_imgs: 5
+# Limit number of images processed (null means all)
+num_imgs: null
+
+# Bit decoding / robustness evaluation
+eval_bits: true
+# Set to true to only output decoded bit-strings (no key needed)
+decode_only: false
+# The key used during watermarking (string of 0/1). Only required if decode_only=false
+key_str: "111010110101000001010111010011010100010000100111"
+# Batch size for decoding
+batch_size: 32
+# Attack suite: one of [none, few, all]
+attack_mode: few
+
+# Image-level quality metrics and FID
+# Requires img_dir_nw; img_dir_fid is optional but recommended
+eval_imgs: true
+
+# Decoder model configuration
+model:
+  name: hidden
+  # Use the TorchScript checkpoint if available (recommended)
+  msg_decoder_path: models/dec_48b_whit.torchscript.pt
+  # If using a .pth checkpoint, also set these (ignored for TorchScript):
+  num_bits: 48
+  redundancy: 1
+  decoder_depth: 8
+  decoder_channels: 64
+  device: auto

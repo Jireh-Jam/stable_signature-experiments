@@ -9,8 +9,14 @@ import csv
 from datetime import datetime
 from tqdm import tqdm
 import random
-from models import HiddenEncoder, HiddenDecoder, EncoderWithJND, EncoderDecoder
-from attenuations import JND
+import argparse
+from pathlib import Path
+try:
+    from hidden.models import HiddenEncoder, HiddenDecoder, EncoderWithJND, EncoderDecoder
+    from hidden.attenuations import JND
+except ImportError:
+    from models import HiddenEncoder, HiddenDecoder, EncoderWithJND, EncoderDecoder
+    from attenuations import JND
 
 
 # Function definitions
@@ -200,13 +206,21 @@ if __name__ == "__main__":
     encoder_with_jnd = encoder_with_jnd.to(device).eval()
     decoder = decoder.to(device).eval()
 
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser(description="Generate watermarked images using HiDDeN models")
+    parser.add_argument("--input-dir", default="input", help="Base directory containing images (organized in subfolders)")
+    parser.add_argument("--output-dir", default="output", help="Directory to save outputs (watermarked, original, etc.)")
+    parser.add_argument("--num-images", type=int, default=None, help="Max number of images to process")
+    parser.add_argument("--random-msg", action="store_true", help="Use random watermark message per image")
+    args = parser.parse_args()
+
     # Create output directories
-    directories = create_directories()
+    directories = create_directories(args.output_dir)
 
     # Get all image paths
-    input_directory = "pass"  # Update this to your pass directory path
+    input_directory = args.input_dir
     all_image_paths = get_all_image_paths(input_directory)
-    num_images = 3000  # Set the number of images to process
+    num_images = args.num_images
 
     # Randomly select images if needed
     if num_images and num_images < len(all_image_paths):
@@ -226,7 +240,7 @@ if __name__ == "__main__":
                 directories,
                 device,
                 default_transform,
-                random_msg=False
+                random_msg=args.random_msg
             )
             all_metrics.append(metrics)
         except Exception as e:

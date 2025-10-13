@@ -9,6 +9,9 @@ import csv
 from datetime import datetime
 from tqdm import tqdm
 import random
+import sys
+import os
+sys.path.append('hidden')
 from models import HiddenEncoder, HiddenDecoder, EncoderWithJND, EncoderDecoder
 from attenuations import JND
 
@@ -187,7 +190,7 @@ if __name__ == "__main__":
     )
 
     # Load model weights
-    ckpt_path = "ckpts/hidden_replicate.pth"
+    ckpt_path = "hidden/ckpts/hidden_replicate.pth"
     state_dict = torch.load(ckpt_path, map_location='cpu')['encoder_decoder']
     encoder_decoder_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     encoder_state_dict = {k.replace('encoder.', ''): v for k, v in encoder_decoder_state_dict.items() if 'encoder' in k}

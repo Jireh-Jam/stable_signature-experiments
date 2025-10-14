@@ -9,6 +9,9 @@ from torchvision import transforms
 import os
 from scipy.stats import skew, kurtosis
 from scipy.fft import fft2, ifft2, fftshift, ifftshift
+from typing import Dict, Tuple, Optional
+
+from common.logging_utils import setup_logging
 
 # For diffusion models
 try:
@@ -33,8 +36,14 @@ except ImportError:
 
 
 class AdvancedWatermarkAttacks:
-    def __init__(self, device='cuda' if torch.cuda.is_available() else 'cpu'):
-        self.device = device
+    """Collection of attack methods for watermark removal/attenuation.
+
+    Public APIs are typed; internal steps use logging instead of prints.
+    """
+
+    def __init__(self, device: Optional[str] = None):
+        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.logger = setup_logging(name=__name__)
         self.transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -46,7 +55,7 @@ class AdvancedWatermarkAttacks:
 
         # Initialize models if available
         if DIFFUSION_AVAILABLE:
-            print(f"Loading diffusion models on {self.device}...")
+            self.logger.info(f"Loading diffusion models on {self.device}...")
             # Initialize Stable Diffusion for inpainting
             self.inpaint_model = StableDiffusionInpaintPipeline.from_pretrained(
                 "runwayml/stable-diffusion-inpainting",
@@ -66,14 +75,14 @@ class AdvancedWatermarkAttacks:
             ).to(self.device)
 
         if ADVERSARIAL_AVAILABLE:
-            print("Loading adversarial attack models...")
+            self.logger.info("Loading adversarial attack models...")
             # Load a pre-trained model for adversarial attacks
             self.model = models.resnet50(pretrained=True).to(self.device).eval()
             # Create Foolbox model
             self.fmodel = fb.PyTorchModel(self.model, bounds=(0, 1))
 
 
-    def diffusion_resd_attack(self, img, prompt="A detailed, high-quality photograph", noise_step=20, strength=0.5):
+    def diffusion_resd_attack(self, img: np.ndarray, prompt: str = "A detailed, high-quality photograph", noise_step: int = 20, strength: float = 0.5) -> np.ndarray:
         """
         Attack using ReSD approach (Regeneration Stable Diffusion) to remove watermarks
 
@@ -87,7 +96,7 @@ class AdvancedWatermarkAttacks:
             Processed image with potentially removed watermark
         """
         if not DIFFUSION_AVAILABLE:
-            print("Diffusion models not available. Skipping ReSD attack.")
+            self.logger.warning("Diffusion models not available. Skipping ReSD attack.")
             return img
 
         # Store original dimensions
@@ -126,16 +135,14 @@ class AdvancedWatermarkAttacks:
             return output_cv
 
         except Exception as e:
-            print(f"Error in diffusion ReSD attack: {str(e)}")
-            print("Falling back to original image")
+            self.logger.exception(f"Error in diffusion ReSD attack: {str(e)}")
+            self.logger.warning("Falling back to original image")
             return img
 
-    def diffusion_regeneration_attack(self, img, prompt="A clear photograph of a baby stroller or buggy with a pink "
-                                                        "item inside and a price tag visible in high definition",
-                                      strength=0.7):
+    def diffusion_regeneration_attack(self, img: np.ndarray, prompt: str = "A normal image", strength: float = 0.7) -> np.ndarray:
         """Attack using stable diffusion img2img to regenerate the image"""
         if not DIFFUSION_AVAILABLE:
-            print("Diffusion models not available. Skipping regeneration attack.")
+            self.logger.warning("Diffusion models not available. Skipping regeneration attack.")
             return img
 
         # Store original dimensions
@@ -160,15 +167,15 @@ class AdvancedWatermarkAttacks:
         # Ensure output image has the same dimensions as input
         current_h, current_w = output_cv.shape[:2]
         if current_h != original_h or current_w != original_w:
-            print(f"Resizing output from {current_w}x{current_h} to {original_w}x{original_h}")
+            self.logger.debug(f"Resizing output from {current_w}x{current_h} to {original_w}x{original_h}")
             output_cv = cv2.resize(output_cv, (original_w, original_h), interpolation=cv2.INTER_AREA)
 
         return output_cv
 
-    def diffusion_image_to_image_attack(self, img, prompt="A normal image", strength=0.7):
+    def diffusion_image_to_image_attack(self, img: np.ndarray, prompt: str = "A normal image", strength: float = 0.7) -> np.ndarray:
         """Attack using stable diffusion img2img to regenerate the image"""
         if not DIFFUSION_AVAILABLE:
-            print("Diffusion models not available. Skipping regeneration attack.")
+            self.logger.warning("Diffusion models not available. Skipping regeneration attack.")
             return img
 
         # Store original dimensions
@@ -193,16 +200,15 @@ class AdvancedWatermarkAttacks:
         # Ensure output image has the same dimensions as input
         current_h, current_w = output_cv.shape[:2]
         if current_h != original_h or current_w != original_w:
-            print(f"Resizing output from {current_w}x{current_h} to {original_w}x{original_h}")
+            self.logger.debug(f"Resizing output from {current_w}x{current_h} to {original_w}x{original_h}")
             output_cv = cv2.resize(output_cv, (original_w, original_h), interpolation=cv2.INTER_AREA)
 
         return output_cv
 
-    def diffusion_inpainting_attack(self, img, prompt="A clear photograph of a baby stroller or buggy with a pink "
-                                                        "item inside and a price tag visible in high definition", mask_ratio=0.3, strength=0.75):
+    def diffusion_inpainting_attack(self, img: np.ndarray, prompt: str = "A normal image", mask_ratio: float = 0.3, strength: float = 0.75) -> np.ndarray:
         """Attack using stable diffusion inpainting"""
         if not DIFFUSION_AVAILABLE:
-            print("Diffusion models not available. Skipping inpainting attack.")
+            self.logger.warning("Diffusion models not available. Skipping inpainting attack.")
             return img
 
         # Store original dimensions
@@ -237,12 +243,12 @@ class AdvancedWatermarkAttacks:
         # Ensure output image has the same dimensions as input
         current_h, current_w = output_cv.shape[:2]
         if current_h != original_h or current_w != original_w:
-            print(f"Resizing output from {current_w}x{current_h} to {original_w}x{original_h}")
+            self.logger.debug(f"Resizing output from {current_w}x{current_h} to {original_w}x{original_h}")
             output_cv = cv2.resize(output_cv, (original_w, original_h), interpolation=cv2.INTER_AREA)
 
         return output_cv
 
-    def high_frequency_attack(self, img, threshold_percentile=95, filter_strength=0.8):
+    def high_frequency_attack(self, img: np.ndarray, threshold_percentile: float = 95, filter_strength: float = 0.8) -> np.ndarray:
         """
         Attack watermarks by targeting high frequency components
 
@@ -308,7 +314,7 @@ class AdvancedWatermarkAttacks:
 
         return result
 
-    def analyze_frequency_components(self, img, title="Image Frequency Analysis", output_path=None):
+    def analyze_frequency_components(self, img: np.ndarray, title: str = "Image Frequency Analysis", output_path: Optional[str] = None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Analyze and visualize the frequency components of an image
 
@@ -367,10 +373,10 @@ class AdvancedWatermarkAttacks:
         return magnitude_spectrum, high_frequency_mask
 
 
-    def adversarial_attack(self, img, attack_type='FGSM', epsilon=0.03):
+    def adversarial_attack(self, img: np.ndarray, attack_type: str = 'FGSM', epsilon: float = 0.03) -> np.ndarray:
         """Generate adversarial examples using various attacks"""
         if not ADVERSARIAL_AVAILABLE:
-            print("Adversarial attack tools not available. Skipping attack.")
+            self.logger.warning("Adversarial attack tools not available. Skipping attack.")
             return img
         # Store original dimensions
         original_h, original_w = img.shape[:2]
@@ -395,8 +401,8 @@ class AdvancedWatermarkAttacks:
             attack = fb.attacks.FGSM()  # Default
 
         # Print bounds for debugging
-        print(f"Model bounds: {self.fmodel.bounds}")
-        print(f"Input tensor min: {img_tensor_normalized.min().item()}, max: {img_tensor_normalized.max().item()}")
+        self.logger.debug(f"Model bounds: {self.fmodel.bounds}")
+        self.logger.debug(f"Input tensor min: {img_tensor_normalized.min().item()}, max: {img_tensor_normalized.max().item()}")
 
         try:
             # Generate adversarial example
@@ -418,12 +424,12 @@ class AdvancedWatermarkAttacks:
             return adv_img
 
         except Exception as e:
-            print(f"Error in adversarial attack: {str(e)}")
-            print("Falling back to original image")
+            self.logger.exception(f"Error in adversarial attack: {str(e)}")
+            self.logger.warning("Falling back to original image")
             return img
 
-    def calculate_texture_features(self, image):
-        """Calculate texture features using LBP and GLCM for a single image"""
+    def calculate_texture_features(self, image: np.ndarray) -> Dict[str, np.ndarray | Dict[str, np.ndarray]]:
+        """Calculate texture features using LBP and GLCM for a single image."""
         # Convert image to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -465,8 +471,8 @@ class AdvancedWatermarkAttacks:
             'glcm_features': glcm_features
         }
 
-    def calculate_similarity_metrics(self, features_orig, features_attacked):
-        """Calculate similarity metrics between original and attacked image features"""
+    def calculate_similarity_metrics(self, features_orig: Dict, features_attacked: Dict) -> Dict[str, float | Dict[str, float]]:
+        """Calculate similarity metrics between original and attacked image features."""
         # LBP histogram similarity
         lbp_similarity = 1 - np.sum(np.abs(features_orig['lbp_hist'] - features_attacked['lbp_hist'])) / 2
 
@@ -484,8 +490,8 @@ class AdvancedWatermarkAttacks:
             'glcm_similarities': glcm_similarities
         }
 
-    def calculate_image_metrics(self, orig_image, attacked_image):
-        """Calculate PSNR and SSIM between two images"""
+    def calculate_image_metrics(self, orig_image: np.ndarray, attacked_image: np.ndarray) -> Tuple[float, float]:
+        """Calculate PSNR and SSIM between two images."""
         # Calculate PSNR
         mse = np.mean((orig_image.astype(np.float64) - attacked_image.astype(np.float64)) ** 2)
         if mse == 0:
@@ -500,9 +506,9 @@ class AdvancedWatermarkAttacks:
 
         return psnr, ssim_value
 
-    def plot_attack_comparison(self, orig_image, watermarked_image, attacked_image, attack_type, param=None,
-                               output_path=None):
-        """Plot original, watermarked, and attacked images along with metrics"""
+    def plot_attack_comparison(self, orig_image: np.ndarray, watermarked_image: np.ndarray, attacked_image: np.ndarray, attack_type: str, param: Optional[str] = None,
+                               output_path: Optional[str] = None) -> Dict[str, float]:
+        """Plot original, watermarked, and attacked images along with metrics."""
         # Calculate metrics
         original_features = self.calculate_texture_features(orig_image)
         watermarked_features = self.calculate_texture_features(watermarked_image)
@@ -610,13 +616,13 @@ class AdvancedWatermarkAttacks:
         plt.show()
 
         # Print metrics
-        print(f"\n=== {attack_type.upper()} ATTACK {param if param else ''} ===")
-        print(f"Original vs Watermarked: PSNR = {psnr_watermark:.2f} dB, SSIM = {ssim_watermark:.4f}")
-        print(f"Watermarked vs Attacked: PSNR = {psnr_attack:.2f} dB, SSIM = {ssim_attack:.4f}")
-        print(f"LBP Similarity - Orig vs Watermarked: {watermark_metrics['lbp_similarity']:.4f}")
-        print(f"LBP Similarity - Watermarked vs Attacked: {attack_metrics['lbp_similarity']:.4f}")
-        print(f"Avg GLCM Similarity - Orig vs Watermarked: {glcm_watermark_avg:.4f}")
-        print(f"Avg GLCM Similarity - Watermarked vs Attacked: {glcm_attack_avg:.4f}")
+        self.logger.info(f"{attack_type.upper()} ATTACK {param if param else ''}")
+        self.logger.info(f"Original vs Watermarked: PSNR = {psnr_watermark:.2f} dB, SSIM = {ssim_watermark:.4f}")
+        self.logger.info(f"Watermarked vs Attacked: PSNR = {psnr_attack:.2f} dB, SSIM = {ssim_attack:.4f}")
+        self.logger.info(f"LBP Similarity - Orig vs Watermarked: {watermark_metrics['lbp_similarity']:.4f}")
+        self.logger.info(f"LBP Similarity - Watermarked vs Attacked: {attack_metrics['lbp_similarity']:.4f}")
+        self.logger.info(f"Avg GLCM Similarity - Orig vs Watermarked: {glcm_watermark_avg:.4f}")
+        self.logger.info(f"Avg GLCM Similarity - Watermarked vs Attacked: {glcm_attack_avg:.4f}")
 
         # Return metrics for reporting
         return {
@@ -630,8 +636,8 @@ class AdvancedWatermarkAttacks:
             'glcm_similarity_attack': glcm_attack_avg
         }
 
-    def run_evaluation(self, original_path, watermarked_path, output_dir=None):
-        """Run evaluation with all available attack methods including high frequency attacks"""
+    def run_evaluation(self, original_path: str, watermarked_path: str, output_dir: Optional[str] = None) -> Dict[str, Dict[str, float]]:
+        """Run evaluation with a suite of attack methods, including high frequency attacks."""
         # Load images
         original_image = cv2.imread(original_path)
         watermarked_image = cv2.imread(watermarked_path)
@@ -656,7 +662,7 @@ class AdvancedWatermarkAttacks:
             )
 
         # Run high frequency attacks with different parameters
-        print("\n=== Running High Frequency Attacks ===")
+        self.logger.info("Running High Frequency Attacks")
         thresholds = [75, 90, 95, 98]
         strengths = [0.5, 0.5, 0.8, 0.95]
 
@@ -664,7 +670,7 @@ class AdvancedWatermarkAttacks:
             for strength in strengths:
                 attack_name = f"high_frequency"
                 param_str = f"thresh={threshold},str={strength}"
-                print(f"\nRunning high frequency attack ({param_str})")
+                self.logger.info(f"Running high frequency attack ({param_str})")
 
                 attacked_image = self.high_frequency_attack(
                     watermarked_image,
@@ -700,7 +706,7 @@ class AdvancedWatermarkAttacks:
 
             for mask_ratio in mask_ratios:
                 for prompt in prompts:
-                    print(f"\nRunning diffusion inpainting attack (mask={mask_ratio}, prompt='{prompt}')")
+                    self.logger.info(f"Running diffusion inpainting attack (mask={mask_ratio}, prompt='{prompt}')")
                     attacked_image = self.diffusion_inpainting_attack(
                         watermarked_image, prompt=prompt, mask_ratio=mask_ratio
                     )
@@ -714,7 +720,7 @@ class AdvancedWatermarkAttacks:
             # Diffusion regeneration attacks
             strengths = [0.3, 0.5, 0.7]
             for strength in strengths:
-                print(f"\nRunning diffusion regeneration attack (strength={strength})")
+                self.logger.info(f"Running diffusion regeneration attack (strength={strength})")
                 attacked_image = self.diffusion_regeneration_attack(
                     watermarked_image, prompt="A normal image", strength=strength
                 )
@@ -727,7 +733,7 @@ class AdvancedWatermarkAttacks:
             # Diffusion image to image attacks
             strengths = [0.3, 0.5, 0.7]
             for strength in strengths:
-                print(f"\nRunning diffusion image to image attack (strength={strength})")
+                self.logger.info(f"Running diffusion image to image attack (strength={strength})")
                 attacked_image = self.diffusion_image_to_image_attack(
                     watermarked_image, prompt="A normal image", strength=strength
                 )
@@ -745,7 +751,7 @@ class AdvancedWatermarkAttacks:
 
             for attack_type in attack_types:
                 for epsilon in epsilons:
-                    print(f"\nRunning adversarial attack ({attack_type}, epsilon={epsilon})")
+                    self.logger.info(f"Running adversarial attack ({attack_type}, epsilon={epsilon})")
                     attacked_image = self.adversarial_attack(
                         watermarked_image, attack_type=attack_type, epsilon=epsilon
                     )
@@ -762,8 +768,8 @@ class AdvancedWatermarkAttacks:
 
         return results
 
-    def create_summary_report(self, results, output_dir):
-        """Create a summary report of all attack results"""
+    def create_summary_report(self, results: Dict[str, Dict[str, float]], output_dir: str) -> None:
+        """Create a summary report of all attack results."""
         with open(os.path.join(output_dir, "attack_summary_report.txt"), 'w') as f:
             f.write("WATERMARK ROBUSTNESS EVALUATION SUMMARY\n")
             f.write("=" * 80 + "\n\n")
@@ -789,7 +795,7 @@ class AdvancedWatermarkAttacks:
             for attack_name, metrics in sorted_attacks[-3:]:
                 f.write(f"{attack_name}: SSIM = {metrics['ssim_attack']:.4f}, PSNR = {metrics['psnr_attack']:.2f} dB\n")
 
-    def run_single_attack(self, original_path, watermarked_path, attack_type, param=None, output_dir=None, prompt=None):
+    def run_single_attack(self, original_path: str, watermarked_path: str, attack_type: str, param: Optional[float | Tuple[float, float]] = None, output_dir: Optional[str] = None, prompt: Optional[str] = None):
         """
         Run a single attack for quick testing
 
@@ -806,7 +812,7 @@ class AdvancedWatermarkAttacks:
         watermarked_image = cv2.imread(watermarked_path)
 
         if original_image is None or watermarked_image is None:
-            print("Error: Could not load one or both images. Please check the file paths.")
+            self.logger.error("Error: Could not load one or both images. Please check the file paths.")
             return
 
         # Create output directory if specified
@@ -816,7 +822,7 @@ class AdvancedWatermarkAttacks:
         # Apply the selected attack
         if attack_type == 'diffusion_inpainting':
             mask_ratio = param if param is not None else 0.3
-            print(f"Running diffusion inpainting attack (mask ratio={mask_ratio})")
+            self.logger.info(f"Running diffusion inpainting attack (mask ratio={mask_ratio})")
             attacked_image = self.diffusion_inpainting_attack(
                 watermarked_image, prompt=prompt or "A clean, high-quality photograph", mask_ratio=mask_ratio
             )
@@ -824,7 +830,7 @@ class AdvancedWatermarkAttacks:
 
         elif attack_type == 'diffusion_regeneration':
             strength = param if param is not None else 0.5
-            print(f"Running diffusion regeneration attack (strength={strength})")
+            self.logger.info(f"Running diffusion regeneration attack (strength={strength})")
             attacked_image = self.diffusion_regeneration_attack(
                 watermarked_image, prompt=prompt or "A clean, high-quality photograph", strength=strength
             )
@@ -837,7 +843,7 @@ class AdvancedWatermarkAttacks:
             if isinstance(param, tuple) and len(param) == 2:
                 strength, noise_step = param
 
-            print(f"Running diffusion ReSD attack (strength={strength}, noise_step={noise_step})")
+            self.logger.info(f"Running diffusion ReSD attack (strength={strength}, noise_step={noise_step})")
 
             # Use general prompt if not specified
             default_prompt = "A clean, detailed, high-quality photograph"
@@ -852,7 +858,7 @@ class AdvancedWatermarkAttacks:
 
         elif attack_type == 'diffusion_image_to_image':
             strength = param if param is not None else 0.5
-            print(f"Running diffusion image to image attack (strength={strength})")
+            self.logger.info(f"Running diffusion image to image attack (strength={strength})")
             attacked_image = self.diffusion_image_to_image_attack(
                 watermarked_image, prompt=prompt or "A clean, high-quality photograph", strength=strength
             )
@@ -861,7 +867,7 @@ class AdvancedWatermarkAttacks:
         elif attack_type.startswith('adversarial_'):
             adv_type = attack_type.split('_')[1] if '_' in attack_type else 'FGSM'
             epsilon = param if param is not None else 0.03
-            print(f"Running adversarial attack ({adv_type}, epsilon={epsilon})")
+            self.logger.info(f"Running adversarial attack ({adv_type}, epsilon={epsilon})")
             attacked_image = self.adversarial_attack(
                 watermarked_image, attack_type=adv_type, epsilon=epsilon
             )
@@ -879,7 +885,7 @@ class AdvancedWatermarkAttacks:
                 threshold = param
                 strength = 0.8
 
-            print(f"Running high frequency attack (threshold={threshold}, strength={strength})")
+            self.logger.info(f"Running high frequency attack (threshold={threshold}, strength={strength})")
 
             # Analyze frequency components first if output directory specified
             if output_dir:
@@ -898,7 +904,7 @@ class AdvancedWatermarkAttacks:
             param_str = f"thresh={threshold},str={strength}"
 
         else:
-            print(f"Unknown attack type: {attack_type}")
+            self.logger.error(f"Unknown attack type: {attack_type}")
             return
 
         # Evaluate and visualize results
@@ -914,8 +920,8 @@ class AdvancedWatermarkAttacks:
         return metrics, attacked_image
 
 
-def main():
-    """Main function for command line usage"""
+def main() -> None:
+    """CLI entrypoint for running attacks on images."""
     import argparse
     parser = argparse.ArgumentParser(description='Advanced Watermark Attacks')
     parser.add_argument('--original', required=True, help='Path to original image')

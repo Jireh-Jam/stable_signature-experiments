@@ -1,37 +1,39 @@
-import torch
 import os
-import pandas as pd
+from typing import Dict, Any
+
 import cv2
-from skimage.metrics import peak_signal_noise_ratio
-from PIL import Image
-from torchvision import transforms
 import numpy as np
+import pandas as pd
+import torch
+from PIL import Image
+from skimage.metrics import peak_signal_noise_ratio
+from torchvision import transforms
+
 from models import HiddenEncoder, HiddenDecoder, EncoderWithJND, EncoderDecoder
 from attenuations import JND
+from common.logging_utils import get_logger
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+logger = get_logger(__name__)
 
 # Helper functions to convert between boolean message arrays and bit strings
-def msg2str(msg):
+def msg2str(msg: np.ndarray) -> str:
     return "".join(['1' if el else '0' for el in msg])
 
 
-def str2msg(s):
+def str2msg(s: str):
     return [True if el == '1' else False for el in s]
 
 
 # Parameters class
-class Params():
+class Params:
     def __init__(self, encoder_depth: int, encoder_channels: int, decoder_depth: int, decoder_channels: int,
-                 num_bits: int,
-                 attenuation: str, scale_channels: bool, scaling_i: float, scaling_w: float):
-        # Encoder and decoder parameters
+                 num_bits: int, attenuation: str, scale_channels: bool, scaling_i: float, scaling_w: float) -> None:
         self.encoder_depth = encoder_depth
         self.encoder_channels = encoder_channels
         self.decoder_depth = decoder_depth
         self.decoder_channels = decoder_channels
         self.num_bits = num_bits
-        # Attenuation parameters
         self.attenuation = attenuation
         self.scale_channels = scale_channels
         self.scaling_i = scaling_i
@@ -90,14 +92,27 @@ def load_decoder(ckpt_path, decoder_depth, num_bits, decoder_channels, device):
 
 
 # Function to detect watermark from an image using the decoder model
-def detect_watermark(image_path, ckpt_path, decoder_depth=8, num_bits=48, decoder_channels=64):
-    """Detects and returns the watermark bits hidden in the image."""
+def detect_watermark(image_path: str, ckpt_path: str, decoder_depth: int = 8, num_bits: int = 48,
+                     decoder_channels: int = 64, show: bool = False) -> str:
+    """Detect watermark bits from a single image.
+
+    Args:
+        image_path: Path to image file
+        ckpt_path: Path to checkpoint with encoder_decoder weights
+        decoder_depth: HiddenDecoder depth
+        num_bits: Number of watermark bits
+        decoder_channels: HiddenDecoder channels
+        show: If True, briefly display the image window for debugging
+
+    Returns:
+        Decoded bitstring (e.g., "1010...")
+    """
     # Load watermarked image and resize to expected dimensions.
     img = Image.open(image_path).convert('RGB')
     img = img.resize((512, 512), Image.BICUBIC)
-    # Show the images during loading using cv2
-    cv2.imshow('image', np.array(img))
-    cv2.waitKey(1000)
+    if show:
+        cv2.imshow('image', np.array(img))
+        cv2.waitKey(300)
     # Apply the default transform.
     img_tensor = default_transform(img).unsqueeze(0).to(device)
     # Load the decoder model.
@@ -110,15 +125,15 @@ def detect_watermark(image_path, ckpt_path, decoder_depth=8, num_bits=48, decode
 
 
 # Function to process multiple images in a folder and save results to CSV
-def process_images_in_folder(image_folder, ckpt_path, output_csv="metrics.csv"):
-    """Process multiple images, detect watermark, and store metrics in a CSV file."""
+def process_images_in_folder(image_folder: str, ckpt_path: str, output_csv: str = "metrics.csv") -> None:
+    """Process multiple images, detect watermark, and write results to CSV."""
     results = []
 
     # Iterate over images in the folder
     for filename in os.listdir(image_folder):
         if filename.endswith(".png") or filename.endswith(".jpg"):
             image_path = os.path.join(image_folder, filename)
-            print(f"Processing {image_path}...")
+            logger.info(f"Processing {image_path}...")
             decoded_str = detect_watermark(image_path, ckpt_path)
             # Store the results (you can add more metrics as needed)
             results.append({"image": image_path, "decoded_message": decoded_str})
@@ -126,6 +141,6 @@ def process_images_in_folder(image_folder, ckpt_path, output_csv="metrics.csv"):
     # Convert results to DataFrame and save as CSV
     df = pd.DataFrame(results)
     df.to_csv(output_csv, index=False)
-    print(f"Metrics saved to {output_csv}")
+    logger.info(f"Metrics saved to {output_csv}")
 
 

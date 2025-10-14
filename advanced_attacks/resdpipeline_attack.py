@@ -8,7 +8,7 @@ from tqdm import tqdm
 # Import the custom ReSDPipeline
 # You'll need to ensure this is available in your path
 from res_pipe import ReSDPipeline
-from integrated_watermark_attackers import integrate_with_advanced_attacks
+from integrated_watermark_attackers import integrate_with_advanced_attacks  # noqa: F401
 
 class DirectReSDAttack:
     """

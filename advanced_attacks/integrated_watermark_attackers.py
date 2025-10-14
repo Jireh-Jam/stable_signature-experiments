@@ -7,6 +7,8 @@ from skimage.util import random_noise
 import matplotlib.pyplot as plt
 from torchvision import transforms
 from tqdm import tqdm
+from typing import Optional, Tuple, Dict
+from common.logging_utils import setup_logging
 import tempfile
 import os
 from scipy.stats import skew, kurtosis
@@ -54,9 +56,9 @@ class DirectReSDAttack:
     This uses the specific capabilities of ReSD for better watermark removal.
     """
 
-    def __init__(self, device='cuda' if torch.cuda.is_available() else 'cpu',
+    def __init__(self, device: Optional[str] = None,
                  model_path="runwayml/stable-diffusion-v1-5",
-                 batch_size=1):
+                 batch_size: int = 1):
         """
         Initialize the ReSD attack pipeline
 
@@ -65,10 +67,11 @@ class DirectReSDAttack:
             model_path: Path to pretrained model
             batch_size: Batch size for processing multiple images
         """
-        self.device = device
+        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.logger = setup_logging(name=__name__)
         self.BATCH_SIZE = batch_size
 
-        print(f"Initializing ReSD pipeline on {device}...")
+        self.logger.info(f"Initializing ReSD pipeline on {self.device}...")
         try:
             if not RESD_AVAILABLE:
                 print("ReSDPipeline not available. Cannot initialize.")
@@ -85,10 +88,10 @@ class DirectReSDAttack:
             self.noise_step = 20
             print(f"ReSD pipeline initialized with default noise step {self.noise_step}")
         except Exception as e:
-            print(f"Error initializing ReSD pipeline: {str(e)}")
+            self.logger.exception(f"Error initializing ReSD pipeline: {str(e)}")
             self.pipe = None
 
-    def attack_image(self, img_path, out_path, prompt="", noise_step=None, strength=0.5, return_latents=False):
+    def attack_image(self, img_path: str, out_path: str, prompt: str = "", noise_step: Optional[int] = None, strength: float = 0.5, return_latents: bool = False):
         """
         Attack a single image using ReSD
 
@@ -104,7 +107,7 @@ class DirectReSDAttack:
             Attacked image and optionally latents
         """
         if self.pipe is None:
-            print("ReSD pipeline not initialized successfully. Cannot attack.")
+            self.logger.error("ReSD pipeline not initialized successfully. Cannot attack.")
             return None
 
         # Use provided noise step or default
@@ -165,7 +168,7 @@ class DirectReSDAttack:
             return output_cv
 
         except Exception as e:
-            print(f"Error attacking image {img_path}: {str(e)}")
+            self.logger.exception(f"Error attacking image {img_path}: {str(e)}")
             return None
 
 
@@ -174,10 +177,11 @@ class IntegratedWatermarkAttackers:
     Extended class with all watermark attack methods integrated from multiple sources
     """
 
-    def __init__(self, device='cuda' if torch.cuda.is_available() else 'cpu'):
+    def __init__(self, device: Optional[str] = None):
         """Initialize with common parameters and setup"""
-        self.device = device
-        print(f"Initialized watermark attackers using device: {device}")
+        self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
+        self.logger = setup_logging(name=__name__)
+        self.logger.info(f"Initialized watermark attackers using device: {self.device}")
 
         # Initialize diffusion models if available (assuming from original class)
         self.setup_diffusion_models()
@@ -189,11 +193,11 @@ class IntegratedWatermarkAttackers:
 
     # Integrate basic image processing attacks
 
-    def gaussian_blur_attack(self, img, kernel_size=5, sigma=1):
+    def gaussian_blur_attack(self, img, kernel_size: int = 5, sigma: float = 1):
         """Attack using Gaussian blur"""
         return cv2.GaussianBlur(img, (kernel_size, kernel_size), sigma)
 
-    def gaussian_noise_attack(self, img, std=0.05):
+    def gaussian_noise_attack(self, img, std: float = 0.05):
         """Attack using Gaussian noise"""
         # Convert to [0,1] range for noise addition
         img_float = img.astype(np.float32) / 255.0
@@ -203,7 +207,7 @@ class IntegratedWatermarkAttackers:
         noisy_image = np.clip(noisy_image, 0, 1)
         return (noisy_image * 255).astype(np.uint8)
 
-    def jpeg_compression_attack(self, img, quality=80):
+    def jpeg_compression_attack(self, img, quality: int = 80):
         """Attack using JPEG compression"""
         # Need to write to temp file for JPEG compression
         with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
@@ -225,7 +229,7 @@ class IntegratedWatermarkAttackers:
 
         return compressed_img
 
-    def brightness_attack(self, img, brightness=0.2):
+    def brightness_attack(self, img, brightness: float = 0.2):
         """Attack by changing brightness"""
         # Convert OpenCV BGR to RGB PIL
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -238,7 +242,7 @@ class IntegratedWatermarkAttackers:
         # Convert back to OpenCV BGR
         return cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
 
-    def contrast_attack(self, img, contrast=0.2):
+    def contrast_attack(self, img, contrast: float = 0.2):
         """Attack by changing contrast"""
         # Convert OpenCV BGR to RGB PIL
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -251,7 +255,7 @@ class IntegratedWatermarkAttackers:
         # Convert back to OpenCV BGR
         return cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
 
-    def rotation_attack(self, img, degrees=30):
+    def rotation_attack(self, img, degrees: float = 30):
         """Attack by rotating the image"""
         # Convert OpenCV BGR to RGB PIL
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -263,7 +267,7 @@ class IntegratedWatermarkAttackers:
         # Convert back to OpenCV BGR
         return cv2.cvtColor(np.array(img_pil), cv2.COLOR_RGB2BGR)
 
-    def scale_attack(self, img, scale=0.5):
+    def scale_attack(self, img, scale: float = 0.5):
         """Attack by scaling the image down and back up"""
         h, w = img.shape[:2]
         # Scale down
@@ -271,7 +275,7 @@ class IntegratedWatermarkAttackers:
         # Scale back up to original size
         return cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
 
-    def crop_attack(self, img, crop_ratio=0.5):
+    def crop_attack(self, img, crop_ratio: float = 0.5):
         """Attack by cropping and rescaling"""
         h, w = img.shape[:2]
         # Crop
@@ -280,7 +284,7 @@ class IntegratedWatermarkAttackers:
         # Resize back to original dimensions
         return cv2.resize(cropped, (w, h), interpolation=cv2.INTER_LINEAR)
 
-    def bm3d_attack(self, img, sigma=0.1):
+    def bm3d_attack(self, img, sigma: float = 0.1):
         """Attack using BM3D denoising"""
         if not BM3D_AVAILABLE:
             print("BM3D not available. Skipping BM3D attack.")
@@ -294,9 +298,7 @@ class IntegratedWatermarkAttackers:
 
         # Convert back to uint8
         return (np.clip(denoised, 0, 1) * 255).astype(np.uint8)
-    def diffusion_regeneration_attack(self, img, prompt="A clear photograph of a baby stroller or buggy with a pink "
-                                                        "item inside and a price tag visible in high definition",
-                                      strength=0.7):
+    def diffusion_regeneration_attack(self, img, prompt: str = "A normal image", strength: float = 0.7):
         """Attack using stable diffusion img2img to regenerate the image"""
         if not DIFFUSION_AVAILABLE:
             print("Diffusion models not available. Skipping regeneration attack.")
@@ -329,7 +331,7 @@ class IntegratedWatermarkAttackers:
 
         return output_cv
 
-    def diffusion_image_to_image_attack(self, img, prompt="A normal image", strength=0.7):
+    def diffusion_image_to_image_attack(self, img, prompt: str = "A normal image", strength: float = 0.7):
         """Attack using stable diffusion img2img to regenerate the image"""
         if not DIFFUSION_AVAILABLE:
             print("Diffusion models not available. Skipping regeneration attack.")
@@ -362,8 +364,7 @@ class IntegratedWatermarkAttackers:
 
         return output_cv
 
-    def diffusion_inpainting_attack(self, img, prompt="A clear photograph of a baby stroller or buggy with a pink "
-                                                        "item inside and a price tag visible in high definition", mask_ratio=0.3, strength=0.75):
+    def diffusion_inpainting_attack(self, img, prompt: str = "A normal image", mask_ratio: float = 0.3, strength: float = 0.75):
         """Attack using stable diffusion inpainting"""
         if not DIFFUSION_AVAILABLE:
             print("Diffusion models not available. Skipping inpainting attack.")
@@ -406,7 +407,7 @@ class IntegratedWatermarkAttackers:
 
         return output_cv
 
-    def high_frequency_attack(self, img, threshold_percentile=95, filter_strength=0.8):
+    def high_frequency_attack(self, img, threshold_percentile: float = 95, filter_strength: float = 0.8):
         """
         Attack watermarks by targeting high frequency components
 
@@ -472,7 +473,7 @@ class IntegratedWatermarkAttackers:
 
         return result
 
-    def analyze_frequency_components(self, img, title="Image Frequency Analysis", output_path=None):
+    def analyze_frequency_components(self, img, title: str = "Image Frequency Analysis", output_path: Optional[str] = None):
         """
         Analyze and visualize the frequency components of an image
 
@@ -529,7 +530,7 @@ class IntegratedWatermarkAttackers:
         plt.show()
 
         return magnitude_spectrum, high_frequency_mask
-    def vae_attack(self, img, model_name='bmshj2018-factorized', quality=1):
+    def vae_attack(self, img, model_name: str = 'bmshj2018-factorized', quality: int = 1):
         """Attack using VAE compression"""
         if not COMPRESSAI_AVAILABLE:
             print("CompressAI not available. Skipping VAE attack.")
@@ -565,7 +566,7 @@ class IntegratedWatermarkAttackers:
         return cv2.cvtColor(np.array(rec), cv2.COLOR_RGB2BGR)
 
     # Extend run_single_attack to include the new attack types
-    def run_single_attack(self, original_path, watermarked_path, attack_type, param=None, output_dir=None, prompt=None):
+    def run_single_attack(self, original_path: str, watermarked_path: str, attack_type: str, param: Optional[float | Tuple[float, float]] = None, output_dir: Optional[str] = None, prompt: Optional[str] = None):
         """
         Run a single attack for quick testing with extended attack types
 
@@ -799,7 +800,7 @@ class IntegratedWatermarkAttackers:
 
     # Function to add ReSD attack capability to an existing instance
 
-    def run_comprehensive_evaluation(self, original_path, watermarked_path, output_dir=None):
+    def run_comprehensive_evaluation(self, original_path: str, watermarked_path: str, output_dir: Optional[str] = None):
         """
         Run evaluation with all available attack methods
 
@@ -931,7 +932,7 @@ class IntegratedWatermarkAttackers:
 
         return results
 
-    def create_comprehensive_report(self, results, output_dir):
+    def create_comprehensive_report(self, results: Dict[str, Dict[str, float]], output_dir: str):
         """
         Create a comprehensive report of all attack results
 

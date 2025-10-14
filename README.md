@@ -1,3 +1,13 @@
+Documentation
+-------------
+- Advanced Attacks: `advanced_attacks/README.md`
+- Detector: `detector/README.md`
+- Watermark generation script: `docs/README_generate_watermarked_images.md`
+- Transformations pipeline: `docs/README_transformations_pipeline.md`
+
+Change Log
+----------
+See `CHANGELOG.md` for a summary of recent refactors and docs.
 # 🔐 Watermark Robustness Testing Pipeline
 
 **A user-friendly toolkit for testing digital watermark robustness against image transformations**

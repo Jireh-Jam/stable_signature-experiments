@@ -192,8 +192,17 @@ if __name__ == "__main__":
         encoder, attenuation, params.scale_channels, params.scaling_i, params.scaling_w
     )
 
+    # Parse CLI arguments
+    parser = argparse.ArgumentParser(description="Generate watermarked images using HiDDeN models")
+    parser.add_argument("--input-dir", default="input", help="Base directory containing images (organized in subfolders)")
+    parser.add_argument("--output-dir", default="output", help="Directory to save outputs (watermarked, original, etc.)")
+    parser.add_argument("--num-images", type=int, default=None, help="Max number of images to process")
+    parser.add_argument("--random-msg", action="store_true", help="Use random watermark message per image")
+    parser.add_argument("--ckpt", default="hidden/ckpts/hidden_replicate.pth", help="Path to HiDDeN checkpoint .pth")
+    args = parser.parse_args()
+
     # Load model weights
-    ckpt_path = "ckpts/hidden_replicate.pth"
+    ckpt_path = args.ckpt
     state_dict = torch.load(ckpt_path, map_location='cpu')['encoder_decoder']
     encoder_decoder_state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
     encoder_state_dict = {k.replace('encoder.', ''): v for k, v in encoder_decoder_state_dict.items() if 'encoder' in k}
@@ -205,14 +214,6 @@ if __name__ == "__main__":
     # Move models to device and set to eval mode
     encoder_with_jnd = encoder_with_jnd.to(device).eval()
     decoder = decoder.to(device).eval()
-
-    # Parse CLI arguments
-    parser = argparse.ArgumentParser(description="Generate watermarked images using HiDDeN models")
-    parser.add_argument("--input-dir", default="input", help="Base directory containing images (organized in subfolders)")
-    parser.add_argument("--output-dir", default="output", help="Directory to save outputs (watermarked, original, etc.)")
-    parser.add_argument("--num-images", type=int, default=None, help="Max number of images to process")
-    parser.add_argument("--random-msg", action="store_true", help="Use random watermark message per image")
-    args = parser.parse_args()
 
     # Create output directories
     directories = create_directories(args.output_dir)

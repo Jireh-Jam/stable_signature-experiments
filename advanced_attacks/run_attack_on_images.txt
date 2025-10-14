@@ -1,0 +1,25 @@
+import os
+from attack_class import AdvancedWatermarkAttacks
+
+# Define paths
+original_path = 'Users/Jireh.Jam/Deepfake-Embedding-Mitigation-Measures/extracted_output_limited/output/original/10_dae3d2bd15d65bd354d43ca65223d0d2_original.png'
+watermarked_path = 'Users/Jireh.Jam/Deepfake-Embedding-Mitigation-Measures/extracted_output_limited/output/watermarked/10_dae3d2bd15d65bd354d43ca65223d0d2_watermarked.png'
+output_dir = 'Users/Jireh.Jam/Deepfake-Embedding-Mitigation-Measures/extracted_output_limited/output/watermarked/attack_results'
+
+# Create the output directory if it doesn't exist
+os.makedirs(output_dir, exist_ok=True)
+
+# Initialize the attack tool
+attack_tool = AdvancedWatermarkAttacks()
+
+# Run the diffusion ReSD attack (modify attack_type and param as needed)
+print("Running diffusion ReSD attack...")
+metrics, attacked_image = attack_tool.run_single_attack(
+    original_path,
+    watermarked_path,
+    attack_type='diffusion_resd',  # Change to desired attack type (e.g., 'high_frequency', 'adversarial_FGSM', etc.)
+    param=0.3,                     # Example parameter; adjust as needed
+    output_dir=output_dir
+)
+
+print(f"Attack completed. Results saved to {output_dir}")

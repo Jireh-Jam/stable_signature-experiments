@@ -9,6 +9,10 @@ from PIL import Image, ImageFilter, ImageEnhance
 import numpy as np
 from typing import Dict, Callable, Tuple, List
 import random
+from common.transforms_registry import registry
+from common.logging_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class ImageTransformations:
@@ -288,8 +292,8 @@ class ImageTransformations:
         }
     
     @classmethod
-    def apply_transformation_chain(cls, image: Image.Image, 
-                                 transformations: List[Tuple[str, Callable]]) -> Image.Image:
+    def apply_transformation_chain(cls, image: Image.Image,
+                                   transformations: List[Tuple[str, Callable]]) -> Image.Image:
         """
         Apply a chain of transformations to an image.
         
@@ -305,7 +309,25 @@ class ImageTransformations:
         for name, transform_func in transformations:
             try:
                 result = transform_func(result)
+                logger.debug(f"Applied transform: {name}")
             except Exception as e:
-                print(f"⚠️ Error applying transformation '{name}': {str(e)}")
+                logger.warning(f"Error applying transform '{name}': {e}")
                 
         return result
+
+
+# Register standard transforms into the shared registry for discoverability
+_std = ImageTransformations.get_standard_transformations()
+for _name, _fn in _std.items():
+    try:
+        registry.register(_name, _fn, overwrite=False)
+    except Exception:
+        # Avoid raising if already registered
+        pass
+
+_agg = ImageTransformations.get_aggressive_transformations()
+for _name, _fn in _agg.items():
+    try:
+        registry.register(_name, _fn, overwrite=False)
+    except Exception:
+        pass

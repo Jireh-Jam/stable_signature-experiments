@@ -1,0 +1,137 @@
+[project]
+name = "watermark-robustness-toolkit"
+version = "0.1.0"
+description = "A comprehensive toolkit for watermark embedding, detection, and robustness testing"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/yourusername/watermark-robustness-toolkit"
+"Bug Reports" = "https://github.com/yourusername/watermark-robustness-toolkit/issues"
+"Source" = "https://github.com/yourusername/watermark-robustness-toolkit"
+
+[project.optional-dependencies]
+diffusion = [
+    "diffusers>=0.21.0",
+    "accelerate>=0.20.0",
+    "transformers>=4.25.0",
+]
+advanced = [
+    "bm3d>=4.0.0",
+    "compressai>=1.2.0",
+    "foolbox>=3.3.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
+    "mypy>=0.950",
+    "isort>=5.10.0",
+]
+docs = [
+    "sphinx>=4.5.0",
+    "sphinx-rtd-theme>=1.0.0",
+    "sphinx-autodoc-typehints>=1.18.0",
+]
+
+[project.scripts]
+watermark-attack = "advanced_attacks.run:main"
+watermark-detect = "detector.run:main"
+watermark-generate = "generate_watermarked_images:main"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["common", "advanced_attacks", "detector", "tools", "watermarking_methods"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.json", "*.txt"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # Directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | hidden
+  | src/ldm
+  | src/taming
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "cv2.*",
+    "skimage.*",
+    "augly.*",
+    "diffusers.*",
+    "foolbox.*",
+    "bm3d.*",
+    "compressai.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra -q --strict-markers --cov=common --cov=advanced_attacks --cov=detector"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "requires_gpu: marks tests that require GPU",
+    "requires_models: marks tests that require pre-trained models",
+]

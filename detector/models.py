@@ -1,23 +1,29 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
+"""
+Model management and loading utilities for watermark detection.
 
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
+This module provides utilities for loading and managing watermark detection models,
+including the HiDDeN architecture and related components.
+"""
 
+import logging
+from typing import Optional, Dict, Any, Union
+from pathlib import Path
 
 import torch
 import torch.nn as nn
-from timm.models import vision_transformer
+from torchvision import transforms
 
-# import attenuations
-from hidden import attenuations
+from ..common.config import ModelParams
+
+logger = logging.getLogger(__name__)
+
 
 class ConvBNRelu(nn.Module):
     """
-    Building block used in HiDDeN network. Is a sequence of Convolution, Batch Normalization, and ReLU activation
+    Building block used in HiDDeN network. 
+    Sequence of Convolution, Batch Normalization, and GELU activation.
     """
-    def __init__(self, channels_in, channels_out):
-
+    def __init__(self, channels_in: int, channels_out: int):
         super(ConvBNRelu, self).__init__()
         
         self.layers = nn.Sequential(
@@ -26,37 +32,45 @@ class ConvBNRelu(nn.Module):
             nn.GELU()
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)
+
 
 class HiddenEncoder(nn.Module):
     """
-    Inserts a watermark into an image.
+    Encoder that inserts a watermark into an image.
     """
-    def __init__(self, num_blocks, num_bits, channels, last_tanh=True):
+    def __init__(self, num_blocks: int, num_bits: int, channels: int, last_tanh: bool = True):
         super(HiddenEncoder, self).__init__()
+        
         layers = [ConvBNRelu(3, channels)]
-
-        for _ in range(num_blocks-1):
-            layer = ConvBNRelu(channels, channels)
-            layers.append(layer)
+        for _ in range(num_blocks - 1):
+            layers.append(ConvBNRelu(channels, channels))
 
         self.conv_bns = nn.Sequential(*layers)
         self.after_concat_layer = ConvBNRelu(channels + 3 + num_bits, channels)
-
         self.final_layer = nn.Conv2d(channels, 3, kernel_size=1)
 
         self.last_tanh = last_tanh
         self.tanh = nn.Tanh()
 
-    def forward(self, imgs, msgs):
+    def forward(self, imgs: torch.Tensor, msgs: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the encoder.
+        
+        Args:
+            imgs: Input images (B, 3, H, W)
+            msgs: Messages to embed (B, num_bits)
+            
+        Returns:
+            Watermarked images (B, 3, H, W)
+        """
+        msgs = msgs.unsqueeze(-1).unsqueeze(-1)  # (B, num_bits, 1, 1)
+        msgs = msgs.expand(-1, -1, imgs.size(-2), imgs.size(-1))  # (B, num_bits, H, W)
 
-        msgs = msgs.unsqueeze(-1).unsqueeze(-1) # b l 1 1
-        msgs = msgs.expand(-1,-1, imgs.size(-2), imgs.size(-1)) # b l h w
+        encoded_image = self.conv_bns(imgs)  # (B, channels, H, W)
 
-        encoded_image = self.conv_bns(imgs) # b c h w
-
-        concat = torch.cat([msgs, encoded_image, imgs], dim=1) # b l+c+3 h w
+        concat = torch.cat([msgs, encoded_image, imgs], dim=1)  # (B, num_bits + channels + 3, H, W)
         im_w = self.after_concat_layer(concat)
         im_w = self.final_layer(im_w)
 
@@ -65,14 +79,15 @@ class HiddenEncoder(nn.Module):
 
         return im_w
 
+
 class HiddenDecoder(nn.Module):
     """
-    Decoder module. Receives a watermarked image and extracts the watermark.
+    Decoder that extracts watermarks from images.
+    
     The input image may have various kinds of noise applied to it,
-    such as Crop, JpegCompression, and so on. See Noise layers for more.
+    such as crop, JPEG compression, etc.
     """
-    def __init__(self, num_blocks, num_bits, channels):
-
+    def __init__(self, num_blocks: int, num_bits: int, channels: int):
         super(HiddenDecoder, self).__init__()
 
         layers = [ConvBNRelu(3, channels)]
@@ -85,239 +100,344 @@ class HiddenDecoder(nn.Module):
 
         self.linear = nn.Linear(num_bits, num_bits)
 
-    def forward(self, img_w):
-
-        x = self.layers(img_w) # b d 1 1
-        x = x.squeeze(-1).squeeze(-1) # b d
-        x = self.linear(x) # b d
-        return x
-
-class ImgEmbed(nn.Module):
-    """ Patch to Image Embedding
-    """
-    def __init__(self, patch_size=16, in_chans=3, embed_dim=768):
-        super().__init__()
-        self.patch_size = patch_size
-        self.proj = nn.ConvTranspose2d(embed_dim, in_chans, kernel_size=patch_size, stride=patch_size)
-
-    def forward(self, x, num_patches_w, num_patches_h):
-        B, S, CKK = x.shape # ckk = embed_dim
-        x = self.proj(x.transpose(1,2).reshape(B, CKK, num_patches_h, num_patches_w)) # b s (c k k) -> b (c k k) s -> b (c k k) sh sw -> b c h w
-        return x
-
-class VitEncoder(vision_transformer.VisionTransformer):
-    """
-    Inserts a watermark into an image.
-    """
-    def __init__(self, num_bits, last_tanh=True, **kwargs):
-        super(VitEncoder, self).__init__(**kwargs)
-
-        self.head = nn.Identity()
-        self.norm = nn.Identity()
-
-        self.msg_linear = nn.Linear(self.embed_dim+num_bits, self.embed_dim)
-
-        self.unpatch = ImgEmbed(embed_dim=self.embed_dim, patch_size=kwargs['patch_size'])
-
-        self.last_tanh = last_tanh
-        self.tanh = nn.Tanh()
-
-    def forward(self, x, msgs):
-
-        num_patches = int(self.patch_embed.num_patches**0.5)
-
-        x = self.patch_embed(x)
-
-        cls_tokens = self.cls_token.expand(x.size(0), -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
-        x = torch.cat((cls_tokens, x), dim=1)
-        x = x + self.pos_embed
-        x = self.pos_drop(x)
-
-        msgs = msgs.unsqueeze(1) # b 1 k
-        msgs = msgs.repeat(1, x.shape[1], 1) # b 1 k -> b l k
-        for ii, blk in enumerate(self.blocks):
-            x = torch.concat([x, msgs], dim=-1) # b l (cpq+k)
-            x = self.msg_linear(x)
-            x = blk(x)
-
-        x = x[:, 1:, :] # without cls token
-        img_w = self.unpatch(x, num_patches, num_patches)
-
-        if self.last_tanh:
-            img_w = self.tanh(img_w)
-
-        return img_w
-
-class DvmarkEncoder(nn.Module):
-    """
-    Inserts a watermark into an image.
-    """
-    def __init__(self, num_blocks, num_bits, channels, last_tanh=True):
-        super(DvmarkEncoder, self).__init__()
-
-        transform_layers = [ConvBNRelu(3, channels)]
-        for _ in range(num_blocks-1):
-            layer = ConvBNRelu(channels, channels)
-            transform_layers.append(layer)
-        self.transform_layers = nn.Sequential(*transform_layers)
-
-        # conv layers for original scale
-        num_blocks_scale1 = 3
-        scale1_layers = [ConvBNRelu(channels+num_bits, channels*2)]
-        for _ in range(num_blocks_scale1-1):
-            layer = ConvBNRelu(channels*2, channels*2)
-            scale1_layers.append(layer)
-        self.scale1_layers = nn.Sequential(*scale1_layers)
-
-        # downsample x2
-        self.avg_pool = nn.AvgPool2d(kernel_size=2, stride=2)
-
-        # conv layers for downsampled
-        num_blocks_scale2 = 3
-        scale2_layers = [ConvBNRelu(channels*2+num_bits, channels*4), ConvBNRelu(channels*4, channels*2)]
-        for _ in range(num_blocks_scale2-2):
-            layer = ConvBNRelu(channels*2, channels*2)
-            scale2_layers.append(layer)
-        self.scale2_layers = nn.Sequential(*scale2_layers)
-
-        # upsample x2
-        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+    def forward(self, img_w: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the decoder.
         
-        self.final_layer = nn.Conv2d(channels*2, 3, kernel_size=1)
-
-        self.last_tanh = last_tanh
-        self.tanh = nn.Tanh()
-
-    def forward(self, imgs, msgs):
-
-        encoded_image = self.transform_layers(imgs) # b c h w
-
-        msgs = msgs.unsqueeze(-1).unsqueeze(-1) # b l 1 1
-
-        scale1 = torch.cat([msgs.expand(-1,-1, imgs.size(-2), imgs.size(-1)), encoded_image], dim=1) # b l+c h w
-        scale1 = self.scale1_layers(scale1) # b c*2 h w
-
-        scale2 = self.avg_pool(scale1) # b c*2 h/2 w/2
-        scale2 = torch.cat([msgs.expand(-1,-1, imgs.size(-2)//2, imgs.size(-1)//2), scale2], dim=1) # b l+c*2 h/2 w/2
-        scale2 = self.scale2_layers(scale2) # b c*2 h/2 w/2
-
-        scale1 = scale1 + self.upsample(scale2) # b c*2 h w
-        im_w = self.final_layer(scale1) # b 3 h w
-
-        if self.last_tanh:
-            im_w = self.tanh(im_w)
-
-        return im_w
-
-class EncoderDecoder(nn.Module):
-    def __init__(
-        self, 
-        encoder: nn.Module, 
-        attenuation: attenuations.JND, 
-        augmentation: nn.Module, 
-        decoder:nn.Module,
-        scale_channels: bool,
-        scaling_i: float,
-        scaling_w: float,
-        num_bits: int,
-        redundancy: int
-    ):
-        super().__init__()
-        self.encoder = encoder
-        self.attenuation = attenuation
-        self.augmentation = augmentation
-        self.decoder = decoder
-        # params for the forward pass
-        self.scale_channels = scale_channels
-        self.scaling_i = scaling_i
-        self.scaling_w = scaling_w
-        self.num_bits = num_bits
-        self.redundancy = redundancy
-
-    def forward(
-        self,
-        imgs: torch.Tensor,
-        msgs: torch.Tensor,
-        eval_mode: bool=False,
-        eval_aug: nn.Module=nn.Identity(),
-    ):
-        """
-        Does the full forward pass of the encoder-decoder network:
-        - encodes the message into the image
-        - attenuates the watermark
-        - augments the image
-        - decodes the watermark
-
         Args:
-            imgs: b c h w
-            msgs: b l
-        """
-
-        # encoder
-        deltas_w = self.encoder(imgs, msgs) # b c h w
-
-        # scaling channels: more weight to blue channel
-        if self.scale_channels:
-            aa = 1/4.6 # such that aas has mean 1
-            aas = torch.tensor([aa*(1/0.299), aa*(1/0.587), aa*(1/0.114)]).to(imgs.device) 
-            deltas_w = deltas_w * aas[None,:,None,None]
-
-        # add heatmaps
-        if self.attenuation is not None:
-            heatmaps = self.attenuation.heatmaps(imgs) # b 1 h w
-            deltas_w = deltas_w * heatmaps # # b c h w * b 1 h w -> b c h w
-        imgs_w = self.scaling_i * imgs + self.scaling_w * deltas_w # b c h w
-
-        # data augmentation
-        if eval_mode:
-            imgs_aug = eval_aug(imgs_w)
-            fts = self.decoder(imgs_aug) # b c h w -> b d
-        else:
-            imgs_aug = self.augmentation(imgs_w)
-            fts = self.decoder(imgs_aug) # b c h w -> b d
+            img_w: Watermarked images (B, 3, H, W)
             
-        fts = fts.view(-1, self.num_bits, self.redundancy) # b k*r -> b k r
-        fts = torch.sum(fts, dim=-1) # b k r -> b k
+        Returns:
+            Decoded message features (B, num_bits)
+        """
+        x = self.layers(img_w)  # (B, num_bits, 1, 1)
+        x = x.squeeze(-1).squeeze(-1)  # (B, num_bits)
+        x = self.linear(x)  # (B, num_bits)
+        return x
 
-        return fts, (imgs_w, imgs_aug)
+
+class JND(nn.Module):
+    """
+    Just Noticeable Difference (JND) module for perceptual masking.
+    Based on luminance and contrast masking.
+    """
+    
+    def __init__(self, preprocess=lambda x: x):
+        super(JND, self).__init__()
+        
+        # Sobel kernels for edge detection
+        kernel_x = [[-1., 0., 1.], [-2., 0., 2.], [-1., 0., 1.]]
+        kernel_y = [[-1., -2., -1.], [0., 0., 0.], [1., 2., 1.]]
+        
+        # Luminance kernel
+        kernel_lum = [[1, 1, 1, 1, 1], [1, 2, 2, 2, 1], [1, 2, 0, 2, 1], [1, 2, 2, 2, 1], [1, 1, 1, 1, 1]]
+
+        kernel_x = torch.FloatTensor(kernel_x).unsqueeze(0).unsqueeze(0)
+        kernel_y = torch.FloatTensor(kernel_y).unsqueeze(0).unsqueeze(0)
+        kernel_lum = torch.FloatTensor(kernel_lum).unsqueeze(0).unsqueeze(0)
+
+        self.register_buffer('weight_x', kernel_x)
+        self.register_buffer('weight_y', kernel_y)
+        self.register_buffer('weight_lum', kernel_lum)
+
+        self.preprocess = preprocess
+    
+    def jnd_la(self, x: torch.Tensor, alpha: float = 1.0) -> torch.Tensor:
+        """Luminance masking component."""
+        la = torch.nn.functional.conv2d(x, self.weight_lum, padding=2) / 32
+        mask_lum = la <= 127
+        la[mask_lum] = 17 * (1 - torch.sqrt(la[mask_lum] / 127)) + 3
+        la[~mask_lum] = 3/128 * (la[~mask_lum] - 127) + 3
+        return alpha * la
+
+    def jnd_cm(self, x: torch.Tensor, beta: float = 0.117) -> torch.Tensor:
+        """Contrast masking component."""
+        grad_x = torch.nn.functional.conv2d(x, self.weight_x, padding=1)
+        grad_y = torch.nn.functional.conv2d(x, self.weight_y, padding=1)
+        cm = torch.sqrt(grad_x**2 + grad_y**2)
+        cm = 16 * cm**2.4 / (cm**2 + 26**2)
+        return beta * cm
+
+    def heatmaps(self, x: torch.Tensor, clc: float = 0.3) -> torch.Tensor:
+        """
+        Generate JND heatmaps for perceptual masking.
+        
+        Args:
+            x: Input images in [0,1] range (B, 3, H, W)
+            clc: Cross-luminance-contrast parameter
+            
+        Returns:
+            JND heatmaps (B, 1, H, W)
+        """
+        x = 255 * self.preprocess(x)
+        # Convert to luminance
+        x = 0.299 * x[..., 0:1, :, :] + 0.587 * x[..., 1:2, :, :] + 0.114 * x[..., 2:3, :, :]
+        
+        la = self.jnd_la(x)
+        cm = self.jnd_cm(x)
+        
+        return (la + cm - clc * torch.minimum(la, cm)) / 255
+
 
 class EncoderWithJND(nn.Module):
-    def __init__(
-        self, 
-        encoder: nn.Module, 
-        attenuation: attenuations.JND, 
-        scale_channels: bool,
-        scaling_i: float,
-        scaling_w: float
-    ):
+    """
+    Encoder combined with JND-based perceptual masking.
+    """
+    def __init__(self, 
+                 encoder: HiddenEncoder, 
+                 attenuation: Optional[JND], 
+                 scale_channels: bool,
+                 scaling_i: float,
+                 scaling_w: float):
         super().__init__()
         self.encoder = encoder
         self.attenuation = attenuation
-        # params for the forward pass
         self.scale_channels = scale_channels
         self.scaling_i = scaling_i
         self.scaling_w = scaling_w
 
-    def forward(
-        self,
-        imgs: torch.Tensor,
-        msgs: torch.Tensor,
-    ):
-        """ Does the forward pass of the encoder only """
+    def forward(self, imgs: torch.Tensor, msgs: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass with JND-based masking.
+        
+        Args:
+            imgs: Input images (B, 3, H, W)
+            msgs: Messages to embed (B, num_bits)
+            
+        Returns:
+            Watermarked images (B, 3, H, W)
+        """
+        # Encode watermark
+        deltas_w = self.encoder(imgs, msgs)  # (B, 3, H, W)
 
-        # encoder
-        deltas_w = self.encoder(imgs, msgs) # b c h w
-
-        # scaling channels: more weight to blue channel
+        # Scale channels (give more weight to blue channel)
         if self.scale_channels:
-            aa = 1/4.6 # such that aas has mean 1
-            aas = torch.tensor([aa*(1/0.299), aa*(1/0.587), aa*(1/0.114)]).to(imgs.device) 
-            deltas_w = deltas_w * aas[None,:,None,None]
+            aa = 1/4.6  # Normalization factor
+            aas = torch.tensor([aa*(1/0.299), aa*(1/0.587), aa*(1/0.114)]).to(imgs.device)
+            deltas_w = deltas_w * aas[None, :, None, None]
 
-        # add heatmaps
+        # Apply JND-based attenuation
         if self.attenuation is not None:
-            heatmaps = self.attenuation.heatmaps(imgs) # b 1 h w
-            deltas_w = deltas_w * heatmaps # # b c h w * b 1 h w -> b c h w
-        imgs_w = self.scaling_i * imgs + self.scaling_w * deltas_w # b c h w
-
+            heatmaps = self.attenuation.heatmaps(imgs)  # (B, 1, H, W)
+            deltas_w = deltas_w * heatmaps  # (B, 3, H, W) * (B, 1, H, W) -> (B, 3, H, W)
+        
+        # Combine original image with watermark
+        imgs_w = self.scaling_i * imgs + self.scaling_w * deltas_w
+        
         return imgs_w
+
+
+class ModelManager:
+    """
+    Manager for loading and handling watermark detection models.
+    """
+    
+    def __init__(self, model_params: ModelParams, device: torch.device):
+        """
+        Initialize model manager.
+        
+        Args:
+            model_params: Model configuration parameters
+            device: Device to load models on
+        """
+        self.model_params = model_params
+        self.device = device
+        
+        # Standard image normalization
+        self.normalize = transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
+        
+        self.unnormalize = transforms.Normalize(
+            mean=[-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225],
+            std=[1 / 0.229, 1 / 0.224, 1 / 0.225]
+        )
+    
+    def create_encoder(self) -> HiddenEncoder:
+        """Create a new encoder model."""
+        return HiddenEncoder(
+            num_blocks=self.model_params.encoder_depth,
+            num_bits=self.model_params.num_bits,
+            channels=self.model_params.encoder_channels
+        )
+    
+    def create_decoder(self) -> HiddenDecoder:
+        """Create a new decoder model."""
+        return HiddenDecoder(
+            num_blocks=self.model_params.decoder_depth,
+            num_bits=self.model_params.num_bits,
+            channels=self.model_params.decoder_channels
+        )
+    
+    def create_encoder_with_jnd(self) -> EncoderWithJND:
+        """Create encoder with JND-based attenuation."""
+        encoder = self.create_encoder()
+        
+        attenuation = None
+        if self.model_params.attenuation == "jnd":
+            attenuation = JND(preprocess=self.unnormalize)
+        
+        return EncoderWithJND(
+            encoder=encoder,
+            attenuation=attenuation,
+            scale_channels=self.model_params.scale_channels,
+            scaling_i=self.model_params.scaling_i,
+            scaling_w=self.model_params.scaling_w
+        )
+    
+    def load_decoder(self, checkpoint_path: Union[str, Path]) -> HiddenDecoder:
+        """
+        Load a decoder model from checkpoint.
+        
+        Args:
+            checkpoint_path: Path to model checkpoint
+            
+        Returns:
+            Loaded decoder model
+            
+        Raises:
+            FileNotFoundError: If checkpoint doesn't exist
+            ValueError: If checkpoint loading fails
+        """
+        checkpoint_path = Path(checkpoint_path)
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+        
+        try:
+            # Create decoder model
+            decoder = self.create_decoder()
+            
+            # Load checkpoint
+            checkpoint = torch.load(checkpoint_path, map_location=self.device)
+            
+            # Extract decoder state dict
+            if 'encoder_decoder' in checkpoint:
+                state_dict = checkpoint['encoder_decoder']
+            elif 'state_dict' in checkpoint:
+                state_dict = checkpoint['state_dict']
+            else:
+                state_dict = checkpoint
+            
+            # Remove 'module.' prefix if present (from DataParallel)
+            state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+            
+            # Extract decoder-specific parameters
+            decoder_state_dict = {}
+            for k, v in state_dict.items():
+                if k.startswith('decoder.'):
+                    decoder_state_dict[k.replace('decoder.', '')] = v
+                elif 'decoder' not in k and k in [p[0] for p in decoder.named_parameters()]:
+                    # Handle case where decoder params don't have 'decoder.' prefix
+                    decoder_state_dict[k] = v
+            
+            # Load state dict
+            decoder.load_state_dict(decoder_state_dict, strict=False)
+            
+            # Move to device and set to eval mode
+            decoder = decoder.to(self.device).eval()
+            
+            logger.info(f"Successfully loaded decoder from {checkpoint_path}")
+            return decoder
+            
+        except Exception as e:
+            raise ValueError(f"Failed to load decoder from {checkpoint_path}: {str(e)}")
+    
+    def load_encoder(self, checkpoint_path: Union[str, Path]) -> HiddenEncoder:
+        """
+        Load an encoder model from checkpoint.
+        
+        Args:
+            checkpoint_path: Path to model checkpoint
+            
+        Returns:
+            Loaded encoder model
+        """
+        checkpoint_path = Path(checkpoint_path)
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+        
+        try:
+            # Create encoder model
+            encoder = self.create_encoder()
+            
+            # Load checkpoint
+            checkpoint = torch.load(checkpoint_path, map_location=self.device)
+            
+            # Extract encoder state dict
+            if 'encoder_decoder' in checkpoint:
+                state_dict = checkpoint['encoder_decoder']
+            else:
+                state_dict = checkpoint
+            
+            # Remove 'module.' prefix if present
+            state_dict = {k.replace('module.', ''): v for k, v in state_dict.items()}
+            
+            # Extract encoder-specific parameters
+            encoder_state_dict = {}
+            for k, v in state_dict.items():
+                if k.startswith('encoder.'):
+                    encoder_state_dict[k.replace('encoder.', '')] = v
+            
+            # Load state dict
+            encoder.load_state_dict(encoder_state_dict, strict=False)
+            
+            # Move to device and set to eval mode
+            encoder = encoder.to(self.device).eval()
+            
+            logger.info(f"Successfully loaded encoder from {checkpoint_path}")
+            return encoder
+            
+        except Exception as e:
+            raise ValueError(f"Failed to load encoder from {checkpoint_path}: {str(e)}")
+    
+    def save_model(self, 
+                   model: nn.Module, 
+                   save_path: Union[str, Path],
+                   metadata: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Save a model to checkpoint.
+        
+        Args:
+            model: Model to save
+            save_path: Path to save checkpoint
+            metadata: Optional metadata to include
+        """
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        checkpoint = {
+            'model_state_dict': model.state_dict(),
+            'model_params': self.model_params.__dict__,
+            'model_type': type(model).__name__
+        }
+        
+        if metadata:
+            checkpoint['metadata'] = metadata
+        
+        torch.save(checkpoint, save_path)
+        logger.info(f"Saved model to {save_path}")
+
+
+def load_detection_model(checkpoint_path: Union[str, Path],
+                        model_params: Optional[ModelParams] = None,
+                        device: Optional[torch.device] = None) -> HiddenDecoder:
+    """
+    Convenience function to load a detection model.
+    
+    Args:
+        checkpoint_path: Path to model checkpoint
+        model_params: Model parameters (uses default if None)
+        device: Device to load on (auto-detect if None)
+        
+    Returns:
+        Loaded decoder model
+    """
+    if model_params is None:
+        model_params = ModelParams()
+    
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    manager = ModelManager(model_params, device)
+    return manager.load_decoder(checkpoint_path)

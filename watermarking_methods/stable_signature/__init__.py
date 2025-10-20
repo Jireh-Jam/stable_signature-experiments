@@ -1,10 +1,12 @@
 """
-Stable Signature Watermarking Method
+Stable Signature watermarking method.
 
-Implementation of the Stable Signature watermarking technique for latent diffusion models.
-Based on "The Stable Signature: Rooting Watermarks in Latent Diffusion Models" (ICCV 2023).
+This package contains the implementation of the Stable Signature
+watermarking technique for latent diffusion models.
 """
 
 from .method import StableSignatureMethod
 
-__all__ = ["StableSignatureMethod"]
+__all__ = [
+    "StableSignatureMethod",
+]

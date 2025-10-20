@@ -1,0 +1,178 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "watermarking-methods"
+version = "1.0.0"
+description = "A comprehensive toolkit for digital watermark generation, detection, and robustness testing"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "CC-BY-NC"}
+authors = [
+    {name = "Watermarking Research Team"}
+]
+keywords = ["watermarking", "stable-signature", "watermark-anything", "image-processing", "robustness-testing"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "License :: Other/Proprietary License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "omegaconf>=2.1.1",
+    "einops>=0.3.0",
+    "transformers>=4.19.2",
+    "open_clip_torch>=2.0.2",
+    "torchmetrics>=0.6.0",
+    "scipy>=1.10.1",
+    "augly>=1.0.0",
+    "scikit-image>=0.20.0",
+    "pytorch-fid>=0.3.0",
+    "pandas>=1.5.3",
+    "matplotlib>=3.5.0",
+    "torch>=1.10.0",
+    "torchvision>=0.11.0",
+    "Pillow>=9.0.0",
+    "numpy>=1.21.0",
+    "tqdm>=4.62.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "jupyter>=1.0.0",
+    "ipykernel>=6.0.0",
+    "pre-commit>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-org/watermark-testing-pipeline"
+Documentation = "https://github.com/your-org/watermark-testing-pipeline/blob/main/README.md"
+Repository = "https://github.com/your-org/watermark-testing-pipeline"
+"Bug Tracker" = "https://github.com/your-org/watermark-testing-pipeline/issues"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["watermarking_methods*", "common*", "tools*", "src*"]
+exclude = ["experiments*", "docs*", "tests*"]
+
+# Ruff configuration
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # Line too long (handled by black)
+    "B008",  # Do not perform function calls in argument defaults
+    "C901",  # Too complex
+    "W191",  # Indentation contains tabs
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]  # Ignore unused imports in __init__.py
+
+[tool.ruff.isort]
+known-first-party = ["watermarking_methods", "common", "tools", "src"]
+
+# Black configuration
+[tool.black]
+line-length = 120
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | src/ldm
+  | src/taming
+)/
+'''
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "src.ldm.*",
+    "src.taming.*",
+    "src.loss.*",
+    "augly.*",
+    "omegaconf.*",
+    "open_clip_torch.*",
+]
+ignore_errors = true
+
+# Pytest configuration
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["watermarking_methods", "common", "tools"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "src/ldm/*",
+    "src/taming/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

@@ -6,7 +6,7 @@ in a reference folder (e.g., _original matches _watermarked).
 Moved under scripts/ for better project organization.
 """
 
-from watermarking_methods.watermark_anything.extract_matching_images import main
+from stable_signature_experiments.watermarking_methods.watermark_anything.extract_matching_images import main
 
 if __name__ == "__main__":
     main()

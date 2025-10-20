@@ -2,7 +2,7 @@
 Lightweight usage examples for the Watermark Anything API.
 
 Usage:
-  python -c "from watermarking_methods.watermark_anything.examples import demo; demo()"
+  python -c "from stable_signature_experiments.watermarking_methods.watermark_anything.examples import demo; demo()"
 """
 from __future__ import annotations
 

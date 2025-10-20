@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stable_signature_experiments"
+version = "0.1.0"
+description = "Watermarking experiments: Stable Signature and Watermark Anything"
+authors = [{ name = "Watermarking Research Team" }]
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["watermark", "stable signature", "image", "robustness"]
+license = { file = "LICENSE" }
+dependencies = [
+  "pillow>=9.0.0",
+  "numpy>=1.22",
+]
+
+[project.optional-dependencies]
+# Torch is optional for basic API usage; install separately if needed
+torch = ["torch"]
+
+[project.scripts]
+watermark-anything = "stable_signature_experiments.watermarking_methods.watermark_anything.__main__:main"
+watermark-anything-count-images = "stable_signature_experiments.watermarking_methods.watermark_anything.count_images:main"
+watermark-anything-extract-matching = "stable_signature_experiments.watermarking_methods.watermark_anything.extract_matching_images:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["stable_signature_experiments*"]
+
+[tool.black]
+line-length = 100
+target-version = ["py38"]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "UP"]
+ignore = ["E203", "E266", "E501"]
+
+[tool.mypy]
+python_version = "3.8"
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = false
+no_implicit_optional = true
+strict_optional = false
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["."]

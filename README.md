@@ -1,25 +1,26 @@
-# 🔐 Watermark Robustness Testing Pipeline
+# 🔐 Watermarking Methods - Comprehensive Testing Pipeline
 
-**A user-friendly toolkit for testing digital watermark robustness against image transformations**
+**A professional toolkit for testing digital watermark robustness against image transformations**
 
 [![License](https://img.shields.io/badge/License-CC--BY--NC-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-green.svg)](https://python.org)
-[![Jupyter](https://img.shields.io/badge/Jupyter-Notebook-orange.svg)](https://jupyter.org)
+[![Package](https://img.shields.io/badge/Package-Installable-orange.svg)](pyproject.toml)
 
 ---
 
 ## 🌟 What is this?
 
-This repository provides an easy-to-use pipeline for testing how well digital watermarks survive common image modifications like cropping, blurring, brightness changes, and compression. It's designed to be accessible to both technical and non-technical users.
+This repository provides a **production-ready, importable Python package** for testing how well digital watermarks survive common image modifications. The codebase has been **professionally refactored** with clean architecture, proper packaging, and comprehensive tooling.
 
 ### 🎯 Key Features
 
-- **🚀 User-Friendly**: Clear instructions in British English, step-by-step guidance
-- **🔧 Multiple Methods**: Support for Stable Signature, TrustMark, and Watermark Anything
-- **📊 Comprehensive Testing**: 25+ different image transformations
-- **📈 Detailed Reports**: Automatic generation of charts, statistics, and recommendations
-- **⚙️ Flexible Configuration**: Easy-to-modify settings for different experiments
-- **🎨 Beautiful Visualisations**: Professional charts and graphs for results analysis
+- **🚀 Easy Installation**: `pip install -e .` and you're ready to go
+- **📦 Clean Package Structure**: Importable modules with clear separation of concerns  
+- **🔧 Multiple Methods**: Stable Signature, TrustMark, and Watermark Anything
+- **📊 Comprehensive Testing**: 20+ different image transformations with detailed analysis
+- **📈 Professional Reports**: Automatic generation of charts, statistics, and recommendations
+- **⚙️ Flexible Configuration**: YAML-based config system with CLI overrides
+- **🛠️ Development Tools**: Pre-configured with ruff, black, mypy, and pytest
 
 ---
 
@@ -27,74 +28,116 @@ This repository provides an easy-to-use pipeline for testing how well digital wa
 
 ### 📋 Prerequisites
 
-- **Python 3.8+** (Python 3.10 recommended)
-- **Jupyter Notebook** or **Azure AI Studio**
-- **4GB+ RAM** (8GB recommended)
+- **Python 3.8+** (Python 3.10+ recommended)
+- **4GB+ RAM** (8GB recommended for large datasets)
 - **500MB+ disk space** for models and data
 
 ### 🔧 Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-repo/watermark-testing-pipeline
-   cd watermark-testing-pipeline
-   ```
+```bash
+# Clone the repository
+git clone <repository-url>
+cd watermarking-methods
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+# Install in editable mode with all dependencies
+pip install -e ".[dev,notebooks]"
 
-3. **Download watermark models** (automatic in notebook)
-   ```bash
-   mkdir -p models/checkpoints
-   # Models will be downloaded automatically when you run the notebook
-   ```
+# Verify installation
+python -c "import watermarking_methods; print('✅ Package ready!')"
+```
 
 ### 🎯 Running Your First Test
 
-1. **Open the user-friendly notebook**
-   ```bash
-   jupyter notebook pipeline_mk4_user_friendly.ipynb
-   ```
+#### Option 1: Use the User-Friendly Notebook (Recommended)
+```bash
+# Start Jupyter and open the main notebook
+jupyter notebook pipeline_mk4_user_friendly.ipynb
+```
 
-2. **Update your settings** in Section 1:
-   ```python
-   user_name = 'Your.Username'  # Change this!
-   watermark_method = "Stable_Signature"
-   max_images_to_process = 5
-   ```
+#### Option 2: Use the Command Line Interface
+```bash
+# Test watermark robustness on a folder of images
+watermark-test --method stable_signature --input images/ --output results/
 
-3. **Run the cells one by one** - each section has clear explanations
+# Use a specific watermarking method
+stable-signature embed-folder input_images/ watermarked_images/
 
-4. **View your results** in the generated charts and CSV files
+# Get help
+watermark-test --help
+```
 
-**⏱️ Total time: 15-30 minutes for a basic test**
+#### Option 3: Use the Python API
+```python
+from watermarking_methods import get_method
+from watermarking_methods.pipelines import run_watermark_pipeline
+
+# Initialize a watermarking method
+method = get_method("stable_signature")
+method.initialize()
+
+# Run comprehensive testing pipeline
+success = run_watermark_pipeline(
+    method=method,
+    input_dir="path/to/images",
+    output_dir="path/to/results", 
+    message="test_watermark"
+)
+```
+
+**⏱️ Total time: 5-30 minutes depending on dataset size**
 
 ---
 
 ## 📁 Repository Structure
 
 ```
-📦 watermark-testing-pipeline/
-├── 📓 pipeline_mk4_user_friendly.ipynb    # 🌟 Main user-friendly notebook
-├── 📓 Pipeline_mk4.ipynb                  # Original technical notebook
-├── 📁 watermarking_methods/               # Watermarking implementations
-│   ├── 🔧 stable_signature/               # Stable Signature method
-│   ├── 🔧 trustmark/                      # TrustMark method
-│   └── 🔧 watermark_anything/             # Watermark Anything method
-├── 📁 tools/                              # Utility modules
-│   ├── 🛠️ transformations.py              # Image transformation functions
-│   ├── 📊 evaluation.py                   # Results analysis tools
-│   └── ⚙️ config.py                       # Configuration management
-├── 📁 experiments/                        # Experiment data and configs
-│   ├── 📁 configs/                        # Configuration files
-│   ├── 📁 data/                           # Input and output data
-│   ├── 📁 results/                        # Generated reports and charts
-│   └── 📁 notebooks/                      # Additional notebooks
-├── 📁 models/                             # Watermark model files
-├── 📁 docs/                               # Documentation
-└── 📄 README.md                           # This file
+📦 watermarking-methods/
+├── 📓 pipeline_mk4_user_friendly.ipynb    # 🌟 START HERE - User-friendly notebook
+├── 📄 pyproject.toml                      # 📦 Package configuration & dependencies
+├── 📄 Makefile                            # 🛠️ Development commands
+├── 📄 .editorconfig                       # ⚙️ Code style configuration
+├── 📄 README.md                           # 📖 This file
+│
+├── 📁 watermarking_methods/               # 🔧 Main package (importable)
+│   ├── 📄 __init__.py                     # Package entry point
+│   ├── 📄 base.py                         # Abstract base class for methods
+│   ├── 📄 cli.py                          # Command-line interface
+│   ├── 📄 pipelines.py                    # High-level testing pipelines
+│   │
+│   ├── 📁 shared/                         # 🔗 Common utilities
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 io.py                       # Image I/O functions
+│   │   ├── 📄 image_utils.py              # Image processing utilities
+│   │   ├── 📄 config.py                   # Configuration management
+│   │   └── 📄 logging_utils.py            # Logging setup
+│   │
+│   ├── 📁 stable_signature/               # 🎯 Stable Signature implementation
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 method.py                   # Core implementation
+│   │   └── 📄 cli.py                      # Method-specific CLI
+│   │
+│   ├── 📁 watermark_anything/             # 🌐 Watermark Anything implementation  
+│   │   ├── 📄 __init__.py
+│   │   ├── 📄 method.py                   # Core implementation
+│   │   ├── 📄 cli.py                      # Method-specific CLI
+│   │   ├── 📄 backend.py                  # Backend processing
+│   │   ├── 📄 runner.py                   # Batch processing
+│   │   └── 📁 scripts/                    # Utility scripts
+│   │
+│   └── 📁 trustmark/                      # 🛡️ TrustMark implementation
+│       ├── 📄 __init__.py
+│       └── 📄 method.py                   # Core implementation
+│
+├── 📁 tools/                              # 🛠️ Standalone utilities
+│   ├── 📄 transformations.py             # Image transformation functions
+│   ├── 📄 evaluation.py                  # Results analysis
+│   └── 📄 config.py                      # Configuration helpers
+│
+├── 📁 experiments/                        # 📊 Experiment configurations
+│   └── 📁 configs/
+│       └── 📄 default_config.yaml        # Default settings
+│
+└── 📄 combined_transforms.py              # 🔄 Comprehensive transformations
 ```
 
 ---
@@ -104,42 +147,52 @@ This repository provides an easy-to-use pipeline for testing how well digital wa
 ### 🎯 Stable Signature (Recommended)
 - **Description**: State-of-the-art watermarking for latent diffusion models
 - **Paper**: [The Stable Signature: Rooting Watermarks in Latent Diffusion Models (ICCV 2023)](https://arxiv.org/abs/2303.15435)
-- **Strengths**: Excellent robustness, research-backed
-- **Use case**: Best for most applications
-
-### 🛡️ TrustMark
-- **Description**: Alternative watermarking approach
-- **Strengths**: Different embedding strategy
-- **Use case**: Comparative studies
+- **Strengths**: Excellent robustness, research-backed, production-ready
+- **CLI**: `stable-signature --help`
+- **API**: `get_method("stable_signature")`
 
 ### 🌐 Watermark Anything
-- **Description**: General-purpose watermarking method
-- **Strengths**: Broad applicability
-- **Use case**: Versatile applications
+- **Description**: General-purpose watermarking method with broad applicability
+- **Strengths**: Versatile, handles diverse image types
+- **CLI**: `watermark-anything --help`  
+- **API**: `get_method("watermark_anything")`
+
+### 🛡️ TrustMark
+- **Description**: Alternative watermarking approach for comparative studies
+- **Strengths**: Different embedding strategy, useful for benchmarking
+- **API**: `get_method("trustmark")`
 
 ---
 
 ## 🔄 Image Transformations Tested
 
 ### 📐 **Geometric Transformations**
-- **Cropping**: 10%, 20%, 30% from edges
-- **Rotation**: 5°, 10°, 30° rotations
-- **Resizing**: Scale to 80%, 60%, 40% of original size
+- **Center Crop**: Tests spatial robustness by removing borders (224×224)
+- **Resize**: Tests interpolation effects (512×512)
+- **Rotation**: Tests geometric distortion resistance (15° rotation)
+- **Horizontal Flip**: Tests mirror transformation effects
+- **Perspective Transform**: Tests non-linear spatial distortions
 
-### 🌫️ **Quality Degradation**
-- **Blurring**: Light, medium, heavy Gaussian blur
-- **Compression**: JPEG quality 90%, 70%, 50%, 30%
-- **Noise**: Light, medium, heavy random noise
+### 🎨 **Photometric Transformations**  
+- **Brightness**: Tests over/underexposed conditions (±40%)
+- **Contrast**: Tests contrast enhancement (+50%)
+- **Saturation**: Tests vivid color effects (+60%)
+- **Hue Shift**: Tests color space rotation
+- **Gamma Correction**: Tests non-linear brightness mapping (γ=1.8)
+- **Sharpness**: Tests edge enhancement (2×)
 
-### 🎨 **Colour Adjustments**
-- **Brightness**: ±20%, ±50% brightness changes
-- **Contrast**: High/low contrast adjustments
-- **Saturation**: Enhanced, reduced, grayscale conversion
+### 🌊 **Filtering & Noise**
+- **Gaussian Blur**: Tests low-pass filtering (σ=5, σ=15)
+- **Random Erasing**: Tests partial content removal (10-20% area)
+- **Grayscale**: Tests color channel removal
 
-### ⚡ **Advanced Transformations**
-- **Motion blur**: Simulated camera movement
-- **Random cropping**: Non-uniform edge removal
-- **Combination attacks**: Multiple transformations applied together
+### 📦 **Compression**
+- **JPEG**: Tests lossy encoding (Q=90, 70, 30)
+- **Bit Masking**: Tests LSB manipulation (3-bit masking)
+
+### 🔄 **Combined Attacks**
+- **Color Jitter**: Multiple simultaneous photometric changes
+- **Text Overlay**: Content occlusion with text
 
 ---
 
@@ -147,176 +200,299 @@ This repository provides an easy-to-use pipeline for testing how well digital wa
 
 ### 📈 **Detection Rates**
 - **🟢 Excellent (90%+)**: Watermark survives very well
-- **🟡 Good (70-89%)**: Watermark survives reasonably well
+- **🟡 Good (70-89%)**: Watermark survives reasonably well  
 - **🟠 Fair (50-69%)**: Watermark partially survives
 - **🔴 Poor (<50%)**: Watermark struggles to survive
 
 ### 📋 **Generated Reports**
-1. **📊 Detection Rates Chart**: Visual comparison of robustness
-2. **📈 Confidence Distribution**: How certain the detection is
-3. **📄 Detailed CSV**: Complete results for further analysis
-4. **💡 Recommendations**: Suggestions for improvement
+1. **📊 `summary_results.csv`**: Detection rates by transformation
+2. **📄 `detailed_results.json`**: Complete results with confidence scores
+3. **📈 `evaluation_report.txt`**: Human-readable summary
+4. **📊 Charts**: Visual analysis (if matplotlib available)
 
 ### 🎯 **Key Metrics**
 - **Overall Detection Rate**: Percentage of successful detections
-- **Average Confidence**: How certain the detector is
-- **Robustness Level**: Overall assessment (Excellent → Very Poor)
-- **Vulnerable Transformations**: Which attacks work best
+- **Per-Transformation Rates**: Robustness against specific attacks
+- **Confidence Scores**: Detector certainty levels
+- **Vulnerability Analysis**: Which attacks are most effective
 
 ---
 
-## ⚙️ Configuration Options
+## ⚙️ Configuration & Customization
 
-### 🔧 **Basic Settings** (in notebook)
+### 🔧 **Basic Configuration** (Notebook)
 ```python
+# In pipeline_mk4_user_friendly.ipynb
 user_name = 'Your.Username'              # Your username
-watermark_method = "Stable_Signature"    # Which method to test  
-max_images_to_process = 10               # Number of test images
+watermark_method = "Stable_Signature"    # Method to test
+max_images_to_process = 10               # Dataset size
 ```
 
-### 📝 **Advanced Settings** (in config file)
+### 📝 **Advanced Configuration** (YAML)
 ```yaml
-# experiments/configs/default_config.yaml
+# experiments/configs/custom_config.yaml
+watermarking:
+  method: "stable_signature"
+  message_length: 48
+  detection_threshold: 0.5
+
+data:
+  input_size: [256, 256]
+  batch_size: 1
+  max_images: 50
+
 transformations:
-  apply_standard: true      # Standard transformation set
-  apply_aggressive: false   # More challenging transformations
+  apply_standard: true
+  apply_aggressive: false
+  jpeg_quality_levels: [90, 70, 50, 30]
   
 evaluation:
-  confidence_threshold: 0.5 # Detection threshold
-  generate_plots: true      # Create visualisation charts
+  generate_plots: true
+  save_detailed_results: true
+```
+
+### 🖥️ **Command Line Options**
+```bash
+# Use custom config
+watermark-test --config experiments/configs/custom_config.yaml
+
+# Override specific settings
+watermark-test --method watermark_anything --max-images 100
+
+# Enable verbose logging
+watermark-test --verbose --input images/ --output results/
 ```
 
 ---
 
-## 🛠️ Advanced Usage
+## 🛠️ Development & Contributing
+
+### 📦 **Development Setup**
+```bash
+# Install with development dependencies
+pip install -e ".[dev,notebooks]"
+
+# Run code formatting
+make format
+
+# Run linting and type checking  
+make lint type
+
+# Run tests
+make test
+
+# Start notebook server
+make notebook
+```
+
+### 🧪 **Quality Gates**
+- **Ruff**: Fast Python linter with auto-fixing
+- **Black**: Uncompromising code formatter  
+- **MyPy**: Static type checking
+- **Pytest**: Comprehensive test suite
+
+### 📝 **Code Style**
+- **Line length**: 88 characters (Black standard)
+- **Type hints**: Encouraged for public APIs
+- **Docstrings**: Google style for all public functions
+- **Import organization**: isort with ruff
+
+### 🔄 **Development Workflow**
+```bash
+# Make changes to code
+# ...
+
+# Format and check code
+make format lint type
+
+# Run tests
+make test
+
+# All checks in one command
+make check
+```
+
+---
+
+## 📚 API Documentation
+
+### 🔌 **Core API**
+```python
+# Import the main factory function
+from watermarking_methods import get_method, AVAILABLE_METHODS
+
+# Create a watermarking method
+method = get_method("stable_signature")
+
+# Initialize with optional config
+config = {"decoder_path": "path/to/model.pt"}
+success = method.initialize(config)
+
+# Embed watermark
+watermarked_image, success = method.embed_watermark(image, "my_message")
+
+# Detect watermark  
+detected, confidence, message = method.detect_watermark(image)
+```
+
+### 🔧 **Pipeline API**
+```python
+from watermarking_methods.pipelines import run_watermark_pipeline
+from watermarking_methods.shared import load_config
+
+# Load configuration
+config = load_config("experiments/configs/default_config.yaml")
+
+# Run complete pipeline
+success = run_watermark_pipeline(
+    method=method,
+    input_dir="input_images/",
+    output_dir="results/",
+    message="test_watermark",
+    config=config
+)
+```
+
+### 🛠️ **Utilities API**
+```python
+from watermarking_methods.shared import (
+    load_image, save_image,           # I/O functions
+    pil_to_tensor, tensor_to_pil,     # Format conversion
+    setup_logging, get_logger         # Logging
+)
+
+# Set up logging
+setup_logging(verbose=True)
+logger = get_logger(__name__)
+
+# Load and process images
+image = load_image("input.jpg")
+tensor = pil_to_tensor(image)
+# ... process tensor ...
+result = tensor_to_pil(processed_tensor)
+save_image(result, "output.jpg")
+```
+
+---
+
+## 🚀 Advanced Usage
 
 ### 🔬 **Custom Experiments**
-
-1. **Add your own images**: Place them in `experiments/data/raw/`
-2. **Modify transformations**: Edit `tools/transformations.py`
-3. **Adjust thresholds**: Update `experiments/configs/default_config.yaml`
-4. **Create custom analysis**: Use the evaluation tools in `tools/evaluation.py`
-
-### 📓 **Using the API**
-
 ```python
-from watermarking_methods import get_method
-from tools.transformations import ImageTransformations
-from tools.evaluation import WatermarkEvaluator
+# Create custom transformation pipeline
+from watermarking_methods.pipelines import apply_transformations
 
-# Initialize watermarking method
-method = get_method("stable_signature")
-method.initialize()
+transformations = apply_transformations(
+    watermarked_images, 
+    output_dir, 
+    config
+)
 
-# Apply transformations
-transforms = ImageTransformations.get_standard_transformations()
-
-# Evaluate results
-evaluator = WatermarkEvaluator()
-# ... add results and generate reports
+# Run detection on custom transformations
+results = run_detection_evaluation(
+    method, 
+    watermarked_images, 
+    transformed_dir, 
+    results_dir, 
+    config
+)
 ```
 
-### 🔄 **Batch Processing**
+### 📊 **Batch Processing**
+```bash
+# Process large datasets efficiently
+watermark-test \
+  --input large_dataset/ \
+  --output batch_results/ \
+  --method stable_signature \
+  --max-images 1000 \
+  --config experiments/configs/batch_config.yaml
+```
 
-For processing large datasets, use the configuration system:
+### 🔧 **Custom Watermarking Methods**
+```python
+from watermarking_methods.base import BaseWatermarkMethod
 
-```yaml
-data:
-  max_images_to_process: -1  # Process all images
-  
-performance:
-  batch_size: 10             # Process 10 images at once
-  use_gpu: true              # Use GPU acceleration
+class MyCustomMethod(BaseWatermarkMethod):
+    def __init__(self):
+        super().__init__("My Custom Method")
+    
+    def initialize(self, config=None):
+        # Initialize your method
+        return True
+    
+    def embed_watermark(self, image, message):
+        # Implement watermark embedding
+        return watermarked_image, success
+    
+    def detect_watermark(self, image):
+        # Implement watermark detection
+        return detected, confidence, message
 ```
 
 ---
 
-## 📚 Documentation
+## 🆘 Troubleshooting
 
-### 📖 **Guides**
-- [**🚀 Getting Started Guide**](docs/getting_started.md) - Step-by-step setup
-- [**🔧 Configuration Guide**](docs/configuration.md) - All settings explained
-- [**📊 Results Guide**](docs/understanding_results.md) - Interpreting your results
-- [**🛠️ Advanced Usage**](docs/advanced_usage.md) - Custom experiments
+### 🔧 **Installation Issues**
+```bash
+# If pip install fails, try:
+pip install --upgrade pip setuptools wheel
+pip install -e . --verbose
 
-### 🔬 **API Documentation**
-- [**Watermarking Methods API**](docs/api/watermarking_methods.md)
-- [**Transformations API**](docs/api/transformations.md)
-- [**Evaluation API**](docs/api/evaluation.md)
+# If imports fail, check installation:
+python -c "import watermarking_methods; print('OK')"
+```
 
-### 📝 **Examples**
-- [**Basic Watermark Test**](docs/examples/basic_test.md)
-- [**Comparative Study**](docs/examples/comparative_study.md)
-- [**Custom Transformations**](docs/examples/custom_transformations.md)
+### 📦 **Missing Dependencies**
+```bash
+# Install specific dependency groups
+pip install -e ".[notebooks]"  # For Jupyter support
+pip install -e ".[azure]"      # For Azure storage
+pip install -e ".[dev]"        # For development tools
+```
+
+### 🔍 **Import Errors**
+```python
+# Check package is installed correctly
+import sys
+print(sys.path)
+
+# Verify package location
+import watermarking_methods
+print(watermarking_methods.__file__)
+```
+
+### 🐛 **Common Issues**
+- **Model not found**: Download required models using setup instructions
+- **CUDA errors**: Ensure PyTorch CUDA version matches your GPU drivers
+- **Memory errors**: Reduce batch size or image resolution in config
+- **Permission errors**: Use `--user` flag with pip install
 
 ---
 
-## 🤝 Contributing
+## 📄 License & Citation
 
-We welcome contributions! Here's how you can help:
-
-### 🐛 **Report Issues**
-- Found a bug? [Open an issue](https://github.com/your-repo/issues)
-- Have a suggestion? [Start a discussion](https://github.com/your-repo/discussions)
-
-### 💡 **Add Features**
-- **New watermarking methods**: Implement the `BaseWatermarkMethod` interface
-- **Additional transformations**: Add functions to `ImageTransformations`
-- **Better visualisations**: Enhance the plotting functions
-
-### 📖 **Improve Documentation**
-- Fix typos or unclear explanations
-- Add examples or tutorials
-- Translate to other languages
-
----
-
-## 📄 License
-
-This project is licensed under the **Creative Commons Attribution-NonCommercial (CC-BY-NC)** license.
+This project is licensed under **Creative Commons Attribution-NonCommercial (CC-BY-NC)**.
 
 - ✅ **You can**: Use, modify, and share for research and educational purposes
-- ❌ **You cannot**: Use for commercial purposes without permission
+- ❌ **You cannot**: Use for commercial purposes without permission  
 - 📝 **You must**: Provide attribution to the original authors
 
-See [LICENSE](LICENSE) for full details.
-
----
-
-## 🙏 Acknowledgements
-
-This work builds upon several excellent research projects:
-
-- **[Stable Signature](https://github.com/facebookresearch/stable_signature)** - The core watermarking method
-- **[Stability AI](https://github.com/Stability-AI/stablediffusion)** - Stable Diffusion models
-- **[HiDDeN](https://github.com/ando-khachatryan/HiDDeN)** - Watermark training techniques
-
-### 📚 **Research Papers**
+### 📚 **Citation**
 ```bibtex
-@article{fernandez2023stable,
-  title={The Stable Signature: Rooting Watermarks in Latent Diffusion Models},
-  author={Fernandez, Pierre and Couairon, Guillaume and J{\'e}gou, Herv{\'e} and Douze, Matthijs and Furon, Teddy},
-  journal={ICCV},
-  year={2023}
+@software{watermarking_methods_2024,
+  title={Watermarking Methods: A Comprehensive Testing Pipeline},
+  author={Watermarking Research Team},
+  year={2024},
+  url={https://github.com/watermarking-research/watermarking-methods}
 }
 ```
 
----
-
-## 🆘 Getting Help
-
-### 💬 **Community Support**
-- [**GitHub Discussions**](https://github.com/your-repo/discussions) - Ask questions, share results
-- [**Issues**](https://github.com/your-repo/issues) - Report bugs or request features
-
-### 📧 **Direct Contact**
-- **Research questions**: contact@research-team.com
-- **Technical support**: support@research-team.com
-
-### 🔍 **Troubleshooting**
-- **Installation issues**: Check [Installation Guide](docs/installation.md)
-- **Configuration problems**: See [Configuration Guide](docs/configuration.md)
-- **Result interpretation**: Read [Results Guide](docs/understanding_results.md)
+### 🙏 **Acknowledgements**
+- **[Stable Signature](https://github.com/facebookresearch/stable_signature)** - Core watermarking method
+- **[Stability AI](https://github.com/Stability-AI/stablediffusion)** - Stable Diffusion models
+- **[HiDDeN](https://github.com/ando-khachatryan/HiDDeN)** - Watermark training techniques
 
 ---
 
@@ -324,15 +500,15 @@ This work builds upon several excellent research projects:
 
 ### 🔮 **Upcoming Features**
 - **🌐 Web Interface**: Browser-based testing (no coding required)
-- **☁️ Cloud Integration**: Run experiments on cloud platforms
+- **☁️ Cloud Integration**: Run experiments on cloud platforms  
 - **📱 Mobile Support**: Test watermarks on mobile-processed images
-- **🤖 AI-Powered Analysis**: Automatic interpretation of results
+- **🤖 AI Analysis**: Automatic interpretation and recommendations
 
 ### 📈 **Roadmap**
-- **Q1 2024**: Web interface and cloud integration
-- **Q2 2024**: Mobile support and additional watermarking methods
-- **Q3 2024**: AI-powered analysis and recommendations
-- **Q4 2024**: Multi-language support and advanced visualisations
+- **Q1 2024**: Enhanced CLI tools and batch processing
+- **Q2 2024**: Web interface and cloud deployment
+- **Q3 2024**: Mobile support and additional methods
+- **Q4 2024**: AI-powered analysis and multi-language support
 
 ---
 
@@ -342,6 +518,6 @@ This work builds upon several excellent research projects:
 
 **Made with ❤️ by the Watermarking Research Team**
 
-[🚀 Get Started](pipeline_mk4_user_friendly.ipynb) • [📚 Documentation](docs/) • [🤝 Contribute](CONTRIBUTING.md) • [💬 Discuss](https://github.com/your-repo/discussions)
+[🚀 Get Started](pipeline_mk4_user_friendly.ipynb) • [📦 Install](pyproject.toml) • [🛠️ Develop](Makefile) • [🆘 Help](#-troubleshooting)
 
 </div>

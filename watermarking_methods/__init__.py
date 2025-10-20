@@ -9,6 +9,7 @@ This package contains implementations for various watermarking techniques:
 Each method provides a consistent interface for embedding and detecting watermarks.
 """
 
+from typing import Optional
 from .base import BaseWatermarkMethod
 
 __version__ = "1.0.0"

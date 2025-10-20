@@ -21,6 +21,19 @@ Our approach allows for embedding (possibly multiple) localized watermarks into 
 - We've also enhanced the model's robustness, particularly in handling moving watermarked objects in images, and for the rest it should yield similar results than the model in the publication. 
 
 
+## Repository Integration Notes
+
+This folder has been organized for pipeline experiments. Primary entrypoints:
+
+- Python API: `watermarking_methods.watermark_anything.api`
+  - `get_backend`, `embed_image`, `detect_image`
+- Folder runners: `watermarking_methods.watermark_anything.runner`
+  - `embed_folder`, `detect_folder`
+- Method class: `watermarking_methods.watermark_anything.method.WatermarkAnythingMethod`
+
+Torch and checkpoints are optional; if unavailable, the backend gracefully
+falls back to no-op embed and simulated detection to allow notebooks to run.
+
 ## Requirements
 
 

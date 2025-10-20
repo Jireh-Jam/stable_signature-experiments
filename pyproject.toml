@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stable_signature_experiments"
+version = "0.1.0"
+description = "Watermarking methods and experiments (Stable Signature, Watermark Anything)"
+authors = [{ name = "Watermarking Research Team" }]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+  "Pillow>=9.5",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.5.6",
+  "black>=24.3.0",
+  "mypy>=1.6.1",
+  "pytest>=7.4",
+  "nbformat>=5.9",
+  "nbconvert>=7.9",
+]
+
+[tool.setuptools]
+packages = [
+  "stable_signature_experiments",
+  "stable_signature_experiments.watermarking_methods",
+  "stable_signature_experiments.watermarking_methods.shared",
+  "stable_signature_experiments.watermarking_methods.stable_signature",
+  "stable_signature_experiments.watermarking_methods.stable_signature.core",
+  "stable_signature_experiments.watermarking_methods.stable_signature.pipelines",
+  "stable_signature_experiments.watermarking_methods.stable_signature.utils",
+  "stable_signature_experiments.watermarking_methods.trustmark",
+  "stable_signature_experiments.watermarking_methods.watermark_anything",
+  "stable_signature_experiments.watermarking_methods.watermark_anything.core",
+  "stable_signature_experiments.watermarking_methods.watermark_anything.pipelines",
+  "stable_signature_experiments.watermarking_methods.watermark_anything.utils",
+]
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.black]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.8"
+strict = false
+ignore_missing_imports = true
+

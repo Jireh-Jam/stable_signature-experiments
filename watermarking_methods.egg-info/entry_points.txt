@@ -1,0 +1,4 @@
+[console_scripts]
+stable-signature = watermarking_methods.stable_signature.cli:main
+watermark-anything = watermarking_methods.watermark_anything.cli:main
+watermark-test = watermarking_methods.cli:main
